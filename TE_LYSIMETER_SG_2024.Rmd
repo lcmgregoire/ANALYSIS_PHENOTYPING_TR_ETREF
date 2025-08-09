@@ -1,0 +1,314 @@
+---
+title: "Analysis TE*plant* Lysimeter Sorghum 2024"
+author: "Laura Gregoire"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(repos = c(CRAN = "https://cran.r-project.org"))
+tinytex::is_tinytex()
+rm(list = ls())
+```
+
+
+
+```{r wd librairies, include=FALSE}
+# install.packages("tinytex")
+# tinytex::install_tinytex()
+
+
+library(soiltestcorr)
+library(segmented)
+library("pastecs")
+library("plyr")
+library("car")
+library("ggplot2")
+library("multcomp")
+library("lubridate")
+library(reshape2)       
+library(dplyr)     # data management
+library(tidyr)
+library(ggpubr)
+library(pkr)
+library(ggcorrplot)
+library(corrplot)
+library(stats)
+library(agricolae)
+library(lme4)
+library("inti")
+library(here)
+library(RLRsim)
+
+here::here()
+
+opPATH.obj= "./saved_objects/"
+  if (!dir.exists(opPATH.obj)) dir.create(opPATH.obj, recursive = TRUE)
+
+
+opPATH.results= "./results/"
+  if (!dir.exists(opPATH.results)) dir.create(opPATH.results, recursive = TRUE)
+
+
+opPATH.data= "./data/"
+  if (!dir.exists(opPATH.data)) dir.create(opPATH.data, recursive = TRUE)
+
+
+opPATH.fig= "./figures/"
+  if (!dir.exists(opPATH.fig)) dir.create(opPATH.fig, recursive = TRUE)
+
+
+```
+
+
+```{r load data, include=FALSE}
+## import data 
+data <- read.csv(here::here(opPATH.data, "DATA_TE_LYSI_SG_2024.csv"), dec = ".", sep = ";")
+
+#variables as factor studied
+data$N_GENO=as.factor(data$N_GENO)
+data$REPETITION=as.factor(data$REPETITION) 
+data$BLOCK=as.factor(data$BLOCK)
+data$TRENCH=as.factor(data$TRENCH)
+
+data$LEAF_AREA=as.numeric(data$LEAF_AREA)
+data$TOTDW_G=as.numeric(data$TOTDW_G)
+data$TE=as.numeric(data$TE)
+
+ save_before_cleaning = data
+```
+
+
+```{r, echo=FALSE}
+print("libraries and phenotypic data loaded")
+```
+
+# variability among repetitions/block before cleaning : 
+
+```{r variation before cleaning }
+### boxplot to visualize variability among repetitions / BLOCK /  ... 
+ggplot(data, aes(x= data$REPETITION, y=data$TE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK, y=data$TE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$TRENCH, y=data$TE)) + 
+  geom_boxplot()
+
+```
+
+# removed outliers :
+
+```{r sorting outliers}
+## there are extreme high values on the boxplot, TE =  +6 g/kg ?! need to be removed
+
+
+    for (i in 1:nrow(data)) {
+     data$TE[i][data$TE[i] < 0.7] <- NA
+     data$TE[i][data$TE[i] > 3] <- NA
+ out <- boxplot(data$TE, plot = FALSE)$out # values to remove
+    tf <- which(data$TE %in% out) # position in the list
+    data$TE[tf] <- NA
+
+
+    }
+
+## after check the raw dataset, problem with rep 5 and 6
+data <- data %>%
+  filter(!(REPETITION %in% c(5, 6)), !is.na(REPETITION))
+
+data = na.omit(data)
+
+```
+
+```{r}
+min(data$TE)
+max(data$TE)
+mean(data$TE)
+
+```
+
+
+
+# variability among repetitions after cleaning : 
+
+```{r outliers after cleaning}
+### boxplot to visualize variability among repetitions / BLOCK /  ... 
+ggplot(data, aes(x= data$REPETITION, y=data$TE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK, y=data$TE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$TRENCH, y=data$TE)) + 
+  geom_boxplot()
+
+```
+
+# data distribution : 
+
+```{r hist}
+
+# Clean TE data (remove NAs)
+te_values <- na.omit(data$TE)
+df <- data.frame(TE = te_values)
+mean_te <- mean(te_values)
+sd_te <- sd(te_values)
+
+# Create histogram with normal curve using ggplot2
+p <- ggplot(df, aes(x = TE)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "lightblue", color = "black") +
+  stat_function(fun = dnorm, args = list(mean = mean_te, sd = sd_te), color = "darkred", size = 1.2) +
+  labs(
+    title = "Histogram of TEplant - Lysimeter 2024",
+    x = "TEplant",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+# Save the plot
+ggsave(
+  filename = file.path(opPATH.fig, "HIST_TE_LYSI_SG_2024.png"),
+  plot = p,
+  width = 6,
+  height = 4
+)
+
+print(p)
+
+
+```
+# variation among block rep : 
+
+
+```{r anova among block rep}
+model<-lm(TE~REPETITION, data = data)
+aov<-Anova(model)
+print(aov)
+
+model<-lm(TE~BLOCK, data = data)
+aov<-Anova(model)
+print(aov)
+
+model<-lm(TE~TRENCH, data = data)
+aov<-aov(model)
+print(aov)
+
+```
+nothing is significant ... 
+
+# variation among genotypes : 
+
+
+```{r anova geno, include = TRUE}
+# Fit the full model including N_GENO, BLOCK, and REPETITION as random effects
+model_geno<- lmer( TE ~ 1 + (1 | N_GENO) + (1 | BLOCK) + (1 | REPETITION), data = data)
+print(model_geno)
+
+```
+
+
+```{r anova without geno, include = TRUE}
+# Fit the reduced model excluding N_GENO to see what's added by N_GENO
+model_reduced <- lmer( TE ~ 1 + + (1 | BLOCK) + (1 | REPETITION),  data = data)
+print(model_reduced)
+```
+
+
+```{r  comparison model , include = TRUE}
+# Run exact restricted likelihood ratio test for the N_GENO random effect
+test_result <- exactRLRT(model_geno, model_geno, model_reduced)
+print(test_result)
+
+```
+
+```{r anova comparison model , include = TRUE}
+anova(model_reduced, model_geno)
+```
+
+
+# descriptive statistics :
+
+```{r descriptive stat, echo = FALSE}
+df_desc = as.data.frame(stat.desc(x=data$TE))
+
+knitr::kable(df_desc, caption = "descriptive statistics TE")
+```
+
+
+# heritability : 
+
+```{r heritability }
+# Run heritability calculation
+hr <- H2cal(
+  data = data,
+  trait = "TE",
+  gen.name = "N_GENO",
+  rep.n = 4,
+  fixed.model = "0 + N_GENO + (1 | BLOCK) + (1 | REPETITION)",
+  random.model = "1 + (1 | N_GENO) + (1 | BLOCK) + (1 | REPETITION)",
+  plot_diag = TRUE,
+)
+
+last_plot <- recordPlot()
+
+df_output = as.data.frame(t(hr$tabsmr))
+
+knitr::kable(df_output, caption = "Summary heritability estimates")
+
+```
+
+```{r heritability output}
+
+# Save as image (PNG or PDF)
+png(filename = here::here(opPATH.fig, "HERITABILITY_TE_SG_2024.png"),
+    width = 6, height = 4, units = "in", res = 300)
+replayPlot(last_plot)
+dev.off()
+```
+
+
+# blups :
+
+```{r blups}
+
+blup_result = as.data.frame(hr$blups)
+
+blup_result <- blup_result %>%
+  left_join(data[, c("N_GENO", "GENO_NAME")], by = "N_GENO")
+
+blup_result <- unique(blup_result)
+nrow(blup_result)
+save(blup_result, file =  paste0(opPATH.obj,"BLUPS_TE_LYSI_SG_2024.RData"))
+write.table(blup_result, file = paste0(opPATH.results,"BLUPS_TE_LYSI_SG_2024.csv"), dec = ".", sep = ";")
+
+
+
+```
+# mean per genotype :
+
+
+```{r mean per geno}
+TE_mean<-as.data.frame(with(data, tapply(data$TE, N_GENO, mean)))
+  TE_mean = cbind(rownames(TE_mean),  TE_mean$`with(data, tapply(data$TE, N_GENO, mean))`)
+colnames(TE_mean) = c("N_GENO", "TE")
+TE_mean<-as.data.frame(TE_mean)
+TE_mean$N_GENO = as.factor(TE_mean$N_GENO)
+
+
+
+metadata_geno <- data[!duplicated(data$N_GENO), ]
+metadata_geno <- metadata_geno %>% select(N_UNIQUE, GENO_NAME, N_GENO)
+
+TE_mean <- merge(TE_mean, metadata_geno, by = "N_GENO", all.x = TRUE)
+TE_mean <- TE_mean %>% select(N_GENO, TE, GENO_NAME)
+
+write.table(TE_mean, file = paste0(opPATH.results,"TE_mean_LYSI_SG_2024.csv"), dec = ".", sep = ";")
+
+
+```
+
+
+
