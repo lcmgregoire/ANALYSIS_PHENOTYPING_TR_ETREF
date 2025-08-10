@@ -1,0 +1,1281 @@
+---
+title: "Analysis Tr-ETref LTP Sorghum 2024"
+author: "Laura Gregoire"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(repos = c(CRAN = "https://cran.r-project.org"))
+# install.packages("tinytex")
+# tinytex::install_tinytex()
+tinytex::is_tinytex()
+rm(list = ls())
+```
+
+
+## STEPS :
+- working directories, packages.. 
+
+### 1 : import raw TR data 
+
+```{r wd librairies}
+
+library(ggplot2)
+library(car)
+library(ggpubr)
+library(segmented)
+library(pastecs)
+library(dplyr)
+library(patchwork)
+library(RLRsim)
+library(lme4)
+library(inti)
+
+here::here()
+
+opPATH.obj= "./saved_objects/"
+  if (!dir.exists(opPATH.obj)) dir.create(opPATH.obj, recursive = TRUE)
+
+
+opPATH.results= "./results/"
+  if (!dir.exists(opPATH.results)) dir.create(opPATH.results, recursive = TRUE)
+
+
+opPATH.data= "./data/"
+  if (!dir.exists(opPATH.data)) dir.create(opPATH.data, recursive = TRUE)
+
+
+opPATH.fig= "./figures/"
+  if (!dir.exists(opPATH.fig)) dir.create(opPATH.fig, recursive = TRUE)
+```
+
+```{r import data }
+data <- read.csv(here::here(opPATH.data, "DATA_TR_PERIOD_LTP_2024.csv"), dec = ".", sep = ";")
+
+
+data$N_GENO=as.factor(data$N_GENO)
+data$REPETITION=as.factor(data$REPETITION) 
+data$PERIOD=as.factor(data$PERIOD) 
+data$BLOCK=as.factor(data$BLOCK)
+data$BLOCK_WEEK=as.factor(data$BLOCK_WEEK) 
+data$WEEK=as.factor(data$WEEK)
+
+
+data$TR=as.numeric(data$TR)
+data$ETREF=as.numeric(data$ETREF)
+data$TR_RATE=as.numeric(data$TR_RATE)
+data$LEAF_AREA=as.numeric(data$LEAF_AREA)
+
+
+
+nlevels(data$N_GENO)
+nlevels(data$REPETITION)
+nlevels(data$BLOCK)
+nlevels(data$PERIOD)
+
+
+save_before_cleaning = data
+
+
+trial="LTP_SG_2024"
+trait_name = "SLOPE"
+```
+
+### 2 : data visualisation 
+
+variability among repetitions/block before cleaning : 
+
+```{r visu TR before cleaning }
+### boxplot to visualize variability among repetitions / BLOCK / WEEK ... 
+ggplot(data, aes(x= data$REPETITION, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK_WEEK, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$PERIOD, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+
+```
+
+
+mean, max, by period, histo  ... removed outliers if necessary : negative transpiration, LA with NA value
+```{r sorting outliers slope step2}
+ 
+### there are negative values due to irrigation :  need to be removed
+for (i in 1:nrow(data)) {
+    data$TR[i][data$TR[i]< 0] <- NA 
+    
+    data$TR_RATE[i][data$TR_RATE[i]< 0] <- NA 
+    data$TR_RATE[i][data$TR_RATE[i]> 0.0005] <- NA 
+
+    data$TR_RATE[i][data$TR_RATE[i]< 0] <- NA 
+    data$TR_RATE[i][data$LEAF_AREA[i]< 50] <- NA 
+
+}
+
+
+## after chking profile TR-ETREF, removed specific outliers
+
+to_filter <- data.frame(
+  g = c(80, 81, 84, 141, 149, 157, 161, 192, 195, 223, 252, 258, 269, 271, 278, 285, 299, 316, 319, 322, 360, 389, 389 ),
+  rep = c(1,2,1,2,2,2,2,1,2,4,1,3,4,2,4,4,3,4,2,2,4,4,1)
+)
+
+
+  
+removed_rows <- data.frame()
+  
+  # Sous-ensemble correspondant
+
+# Boucle pour enlever la valeur maximale pour chaque combinaison
+for (i in 1:nrow(to_filter)) {
+  g <- to_filter$g[i]
+  r <- to_filter$rep[i]
+  
+  subset_rows <- which(data$N_GENO == g & data$REPETITION == r)
+  geno_subset = data[subset_rows,]
+  
+
+  if (length(subset_rows) > 0) {
+    values <- data[["TR_RATE"]][subset_rows]
+    
+    valid_idx <- which(!is.na(values))
+    if (length(valid_idx) == 0) next
+    
+    # Index relatif vers l'index absolu
+    rel_idx <- valid_idx[which.max(values[valid_idx])]
+    abs_idx <- subset_rows[rel_idx]
+    
+    # Stocke la ligne supprimée
+    removed_rows <- rbind(removed_rows, data[abs_idx, ])
+    
+    # Supprime la ligne du data.frame
+    data <- data[-abs_idx, ]
+    
+
+  }
+}
+
+
+# removed any NA values
+data=na.omit(data)
+
+paste0("still ", nrow(data), " observations on ",  nlevels(data$N_GENO), " genotypes" )
+```
+
+
+### 3 : variability among repetitions
+```{r visu TR mid cleaning }
+### boxplot to visualize variability among repetitions / BLOCK / WEEK ... 
+ggplot(data, aes(x= data$REPETITION, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK_WEEK, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$PERIOD, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+
+```
+
+```{r sorting step2}
+#based on previous boxplots :
+
+### there are negative values due to irrigation :  need to be removed
+for (i in 1:nrow(data)) {
+      data$TR_RATE[i][data$TR_RATE[i]<0] <- NA 
+    data$TR_RATE[i][data$TR_RATE[i]> 2e-04] <- NA 
+}
+
+data=na.omit(data)
+
+paste0("still ", nrow(data), " observations on ",  nlevels(data$N_GENO), " genotypes" )
+
+```
+
+```{r visu TR after cleaning}
+### boxplot to visualize variability among repetitions / BLOCK / WEEK ... 
+ggplot(data, aes(x= data$REPETITION, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK_WEEK, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$PERIOD, y=data$TR_RATE)) + 
+  geom_boxplot()
+
+```
+
+```{r anova TR among rep/block, eval=FALSE}
+## ANOVA TRrate among repetitions
+model<-lm(TR_RATE~REPETITION, data = data)
+aov<-Anova(model)
+print(aov)
+
+
+model<-lm(TR_RATE~WEEK, data = data)
+aov<-Anova(model)
+print(aov)
+
+model<-lm(TR_RATE~BLOCK, data = data)
+aov<-Anova(model)
+print(aov)
+
+
+model<-lm(TR_RATE~BLOCK_WEEK, data = data)
+aov<-Anova(model)
+print(aov)
+
+
+```
+
+```{r model intercept 0}
+data$REPETITION <- as.character(data$REPETITION)
+data$N_GENO <- as.character(data$N_GENO)
+
+#Define the formula (using actual column names)
+formula <- TR_RATE ~ 0 + ETREF
+model_name = "linear"
+#File to log missing data
+na_log_file <- "NA_REPETITION.txt"
+if (file.exists(na_log_file)) file.remove(na_log_file)
+
+#Function to fit the model and save output
+fit_and_save <- function(subset_data, genotype, repetition, output_file) {
+  if (nrow(subset_data) == 0) {
+#    Log missing data
+    write.table(t(c(genotype, repetition)), file = na_log_file, sep = ",",
+                quote = FALSE, col.names = FALSE, row.names = FALSE, append = TRUE)
+    message(sprintf("No data for genotype %s, repetition %s", genotype, repetition))
+  } else {
+ #   Fit linear model
+    model <- lm(formula = formula, data = subset_data)
+    model_summary <- summary(model)
+    aic_value <- AIC(model)
+    
+  #  Prepare result row
+    result <- data.frame(
+      GENOTYPE = genotype,
+      REPETITION = repetition,
+      SLOPE = model_summary$coefficients[1, 1],
+      R2 = model_summary$r.squared,
+      R2_adj = model_summary$adj.r.squared,
+      AIC = aic_value,
+      FORMULA = deparse(model_name)
+    )
+    
+   # Write results to file (add header only if file doesn't exist)
+    write.table(result, file = output_file, sep = ",", quote = FALSE,
+                col.names = !file.exists(output_file), row.names = FALSE, append = TRUE)
+    
+    message(sprintf("Analysis completed for genotype %s, repetition %s", genotype, repetition))
+  }
+}
+
+#Unique repetitions and genotypes
+repetitions <- unique(data$REPETITION)
+genotypes <- unique(data$N_GENO)
+
+#Loop over each repetition and genotype
+for (rep in repetitions) {
+  output_file <-  paste0(opPATH.obj, sprintf("slope_INTERCEPT_geno_rep%s", rep ) ,"_", trial, ".txt")
+  if (file.exists(output_file)) file.remove(output_file)
+  
+  for (geno in genotypes) {
+    subset_data <- subset(data, N_GENO == geno & REPETITION == rep)
+    fit_and_save(subset_data, geno, rep, output_file)
+  }
+}
+
+```
+
+```{r model affine }
+data$REPETITION <- as.character(data$REPETITION)
+data$N_GENO <- as.character(data$N_GENO)
+
+
+#Define the affine model formula
+formula <- TR_RATE ~ ETREF
+model_name = "affine"
+#Missing data log
+na_log_file <- "NA_REPETITION.txt"
+if (file.exists(na_log_file)) file.remove(na_log_file)
+
+#Function to fit and save model results
+fit_and_save_affine <- function(subset_data, genotype, repetition, output_file) {
+  if (nrow(subset_data) <= 1) {
+#    Not enough data to fit a model
+    write.table(t(c(genotype, repetition)), file = na_log_file, sep = ",",
+                quote = FALSE, col.names = FALSE, row.names = FALSE, append = TRUE)
+    message(sprintf("Not enough data for genotype %s, repetition %s", genotype, repetition))
+  } else {
+ #   Fit affine model
+    model <- lm(formula = formula, data = subset_data)
+    model_summary <- summary(model)
+    aic_value <- AIC(model)
+    
+  #  Extract slope (coefficient of ETREF, which is the second row)
+    slope <- model_summary$coefficients["ETREF", "Estimate"]
+    
+    result <- data.frame(
+      GENOTYPE = genotype,
+      REPETITION = repetition,
+      SLOPE = slope,
+      R2 = model_summary$r.squared,
+      R2_adj = model_summary$adj.r.squared,
+      AIC = aic_value,
+      FORMULA = deparse(model_name)
+    )
+    
+   # Write result to file
+    write.table(result, file = output_file, sep = ",", quote = FALSE,
+                col.names = !file.exists(output_file), row.names = FALSE, append = TRUE)
+    
+    message(sprintf("Model complete for genotype %s, repetition %s", genotype, repetition))
+  }
+}
+
+#Get unique repetitions and genotypes
+repetitions <- unique(data$REPETITION)
+genotypes <- unique(data$N_GENO)
+
+#Loop through repetitions and genotypes
+for (rep in repetitions) {
+  output_file <- paste0(opPATH.obj, sprintf("slope_AFFINE_geno_rep%s", rep ) ,"_", trial, ".txt")
+  if (file.exists(output_file)) file.remove(output_file)  #Reset output file
+  
+  for (geno in genotypes) {
+    subset_data <- subset(data, N_GENO == geno & REPETITION == rep)
+    fit_and_save_affine(subset_data, geno, rep, output_file)
+  }
+}
+
+```
+
+```{r model polynomial }
+
+data$REPETITION <- as.character(data$REPETITION)
+data$N_GENO <- as.character(data$N_GENO)
+
+#Define the polynomial model
+formula <- TR_RATE ~ poly(ETREF, 2)
+model_name = "polynomial"
+#File to log missing or insufficient data
+na_log_file <- "NA_REPETITION.txt"
+if (file.exists(na_log_file)) file.remove(na_log_file)
+
+#Function to fit the model and save output
+fit_and_save_poly <- function(subset_data, genotype, repetition, output_file) {
+  if (nrow(subset_data) <= 2) {
+ #   Not enough data to fit a 2nd-degree polynomial
+    write.table(t(c(genotype, repetition)), file = na_log_file, sep = ",",
+                quote = FALSE, col.names = FALSE, row.names = FALSE, append = TRUE)
+    message(sprintf("Insufficient data for genotype %s, repetition %s", genotype, repetition))
+  } else {
+  #  Fit model
+    model <- lm(formula = formula, data = subset_data)
+    model_summary <- summary(model)
+    aic_value <- AIC(model)
+    
+   # Get slope (linear term coefficient) - 1st polynomial term
+    slope <- coef(model)[2]  #gives intercept, linear, quadratic terms
+    
+    #Prepare result
+    result <- data.frame(
+      GENOTYPE = genotype,
+      REPETITION = repetition,
+      SLOPE_LINEAR = slope,
+      R2 = model_summary$r.squared,
+      R2_adj = model_summary$adj.r.squared,
+      AIC = aic_value,
+      FORMULA = deparse(model_name)
+    )
+    
+    #Save to file
+    write.table(result, file = output_file, sep = ",", quote = FALSE,
+                col.names = !file.exists(output_file), row.names = FALSE, append = TRUE)
+    
+    message(sprintf("Model done for genotype %s, repetition %s", genotype, repetition))
+  }
+}
+
+#Get all unique repetitions and genotypes
+repetitions <- unique(data$REPETITION)
+genotypes <- unique(data$N_GENO)
+
+#Loop over each repetition and genotype
+for (rep in repetitions) {
+  output_file <- paste0(opPATH.obj,sprintf("slope_POLYNOMIAL_geno_rep%s", rep ) ,"_", trial, ".txt")
+  if (file.exists(output_file)) file.remove(output_file)
+  
+  for (geno in genotypes) {
+    subset_data <- subset(data, N_GENO == geno & REPETITION == rep)
+    fit_and_save_poly(subset_data, geno, rep, output_file)
+  }
+}
+
+```
+
+```{r model segmented breakpoint }
+
+base_formula <- TR_RATE ~ ETREF
+model_name = "breakpoint"
+
+repetitions <- unique(data$REPETITION)
+
+output_prefix <- paste0(opPATH.obj, "slope_BKPT_geno_rep")
+
+
+na_log_file <-  paste0(opPATH.obj,"NA_BREAKPOINT_REP.txt")
+if (file.exists(na_log_file)) file.remove(na_log_file)
+
+#Function to fit segmented model and write results
+fit_segmented_model <- function(df, genotype, repetition, output_file) {
+  x <- df$ETREF
+  y <- df$TR_RATE
+  
+ # Fit initial linear model
+  lm_model <- try(lm(y ~ x), silent = TRUE)
+  if (inherits(lm_model, "try-error")) return()
+
+  #Fit segmented model
+  seg_model <- try(segmented(lm_model, seg.Z = ~ x), silent = TRUE)
+  if (inherits(seg_model, "try-error") || is.null(seg_model)) {
+    write.table(t(c(genotype, repetition, "Segmented model failed")), file = na_log_file, sep = ",",
+                quote = FALSE, col.names = FALSE, row.names = FALSE, append = TRUE)
+    return()
+  }
+
+  #Extract results
+  summary_seg <- summary(seg_model)
+  aic_val <- AIC(seg_model)
+  
+  slope <- summary_seg$coefficients[2]   #Slope after breakpoint
+  breakpoint <- summary_seg$psi[2]       #Estimated breakpoint
+  r2 <- summary_seg$r.squared
+  adj_r2 <- summary_seg$adj.r.squared
+  
+  #Combine and write result
+  result <- data.frame(
+    GENOTYPE = genotype,
+    REPETITION = repetition,
+    SLOPE = slope,
+    BREAKPOINT = breakpoint,
+    R2 = r2,
+    R2_adj = adj_r2,
+    AIC = aic_val,
+    FORMULA = "breakpoint"
+  )
+  
+  write.table(result, file = output_file, sep = ",", quote = FALSE,
+              col.names = !file.exists(output_file), row.names = FALSE, append = TRUE)
+  message(sprintf("Done: Genotype %s, Repetition %s", genotype, repetition))
+}
+
+#Main loop over repetitions and genotypes
+for (rep in repetitions) {
+  output_file <- paste0(sprintf("%s%s", output_prefix, rep), "_", trial, ".txt")
+  if (file.exists(output_file)) file.remove(output_file)
+
+  for (geno in unique(data$N_GENO)) {
+    subset_df <- data %>%
+      filter(N_GENO == geno, REPETITION == rep) %>%
+      select(ETREF, TR_RATE)
+
+ #   Only proceed if there are enough data points
+    if (nrow(subset_df) > 5) {
+      fit_segmented_model(subset_df, geno, rep, output_file)
+    } else {
+      write.table(t(c(geno, rep, "Not enough data")), file = na_log_file, sep = ",",
+                  quote = FALSE, col.names = FALSE, row.names = FALSE, append = TRUE)
+    }
+  }
+}
+
+
+```
+
+
+what is the best model on the four tested? intercept, linear, polynomial or breakpoint ? Compare R2 and  AIC
+
+
+```{r combine all model}
+#=== Combine Slope Model Outputs Across Repetitions ===
+
+# function to read and label model data
+read_model_files <- function(prefix, n_reps = 4, remove_col = NULL, col_names) {
+  files <- paste0("./", opPATH.obj, prefix, 1:n_reps, "_", trial,".txt")
+  df_list <- lapply(files, function(f) {
+    if (file.exists(f)) {
+      read.table(f, sep = ",", stringsAsFactors = FALSE, header = TRUE) 
+    } else {
+      warning(sprintf("File not found: %s", f))
+      return(NULL)
+    }
+  })
+  
+ # Remove NULLs and bind rows
+  df_combined <- do.call(rbind, Filter(Negate(is.null), df_list))
+  
+#  Remove unwanted column if specified
+  if (!is.null(remove_col)) {
+    df_combined <- df_combined[, -remove_col, drop = FALSE]
+  }
+
+ # Set consistent column names
+  colnames(df_combined) <- col_names
+  return(df_combined)
+}
+
+#Define consistent column names
+common_colnames <- c("N_GENO", "REPETITION", "Estimate", "R2", "R2adj", "AIC", "Model")
+
+#Read all model outputs
+coef_intercept_geno <- read_model_files("slope_INTERCEPT_geno_rep", col_names = common_colnames)
+coef_poly_geno <- read_model_files("slope_POLYNOMIAL_geno_rep", remove_col = 8, col_names = common_colnames)
+coef_bkpt_geno <- read_model_files("slope_BKPT_geno_rep", remove_col = 3, col_names = common_colnames)
+coef_lineaire_geno <- read_model_files("slope_AFFINE_geno_rep", col_names = common_colnames)
+
+
+#create a common df, all models and rep  
+coef_geno_rep_model <- rbind(coef_bkpt_geno, coef_intercept_geno, coef_poly_geno, coef_lineaire_geno)
+save(coef_geno_rep_model, file = paste0(opPATH.obj, "coef_geno_rep_model.RData"))
+
+head(coef_geno_rep_model)
+
+```
+
+
+```{r factor}
+coef_geno_rep_model$Model<-as.factor(coef_geno_rep_model$Model)
+coef_geno_rep_model$N_GENO<-as.factor(coef_geno_rep_model$N_GENO)
+
+
+nlevels(coef_geno_rep_model$Model)
+nlevels(coef_geno_rep_model$N_GENO)
+```
+
+
+```{r boxplot global comparison of AIC and R2 }
+#boxplot to visualize difference in R and AIC among model in general
+#AIC comparison
+AIC_plot = ggplot(coef_geno_rep_model, aes(x = Model, y = AIC, fill = Model)) + 
+  geom_boxplot() +
+  labs(title = "AIC by Model Type", x = "Model", y = "AIC") +
+  theme_minimal()
+
+#R² comparison
+R2_plot =ggplot(coef_geno_rep_model, aes(x = Model, y = R2, fill = Model)) + 
+  geom_boxplot() +
+  labs(title = "R² by Model Type", x = "Model", y = "R²") +
+  theme_minimal()
+
+
+#Save the plot
+ggsave(
+  filename = paste0(opPATH.fig, "boxplot_AIC_", trait_name, "_", trial ,".png"),
+  plot = AIC_plot,
+  width = 6,
+  height = 4
+)
+
+
+#Save the plot
+ggsave(
+  filename = paste0(opPATH.fig, "boxplot_R2_",  trait_name, "_", trial ,".png"),
+  plot = R2_plot,
+  width = 6,
+  height = 4
+)
+
+
+```
+
+
+
+```{r}
+ #=== Prepare Combined Key for Genotype × Repetition ===
+
+df_comparaison_AIC <- coef_geno_rep_model %>%
+  mutate(
+    GENO_TRT = paste(N_GENO, REPETITION, sep = "_")
+  )
+
+df_comparaison_AIC$GENO_TRT <- as.factor(df_comparaison_AIC$GENO_TRT)
+
+str(df_comparaison_AIC)
+```
+
+More precisely what is the best model for each pot? 
+comparison of AIC
+```{r results = 'hide' }
+outputfile <- paste0(opPATH.obj, "choose_best_model_AIC_", trial,".txt")
+header <- c("GENO_TRT", "N_GENO", "REPETITION", "Estimate", "R2", "R2adj", "AIC", "best_model")
+write.table(t(header), file=outputfile, sep=",", quote=FALSE, col.names=FALSE, row.names=FALSE)
+
+unique_geno_trt <- unique(df_comparaison_AIC$GENO_TRT)
+
+for (geno_trt_id in unique_geno_trt) {
+  
+  subset_i <- df_comparaison_AIC[df_comparaison_AIC$GENO_TRT == geno_trt_id, ]
+  
+  if (nrow(subset_i) == 0) {
+    warning(paste("No data found for:", geno_trt_id))
+    next
+  }
+  
+    index_min <- which.min(subset_i$AIC)
+  best_model_row <- subset_i[index_min, ]
+  
+  data_AIC_i <- data.frame(
+    GENO_TRT = geno_trt_id,
+    best_model_row,
+    best_model = paste("best_model", best_model_row$Model, sep = "_"),
+    stringsAsFactors = FALSE
+  )
+  
+data_AIC_i <- data_AIC_i[, !(names(data_AIC_i) %in% c("Model", "GENO_TRT.1"))]  
+  
+  #  Write to file
+  write.table(data_AIC_i, file=outputfile, sep=",", quote=FALSE, col.names=FALSE, row.names=FALSE, append=TRUE)
+  
+  print(paste("Processed:", geno_trt_id))
+}
+```
+
+
+```{r}
+outputfile <- paste0(opPATH.obj, "choose_best_model_AIC_", trial, ".txt")
+
+best_model=read.table(outputfile, sep = ",", header = TRUE)
+
+print(paste("best model AIC affine for (%) ", sum(best_model$best_model == "best_model_affine")/nrow(best_model)*100))
+print(paste("best model AIC  polynomial for (%) ", sum(best_model$best_model == "best_model_polynomial")/nrow(best_model)*100))
+print(paste("best model AIC linear for (%) ",sum(best_model$best_model == "best_model_linear")/nrow(best_model)*100))
+print(paste("best model AIC breakpoint for (%) ",sum(best_model$best_model == "best_model_breakpoint")/nrow(best_model)*100))
+```
+Comparison of R2 
+```{r choose_best_model_R2, results = 'hide'}
+outputfile <- paste0(opPATH.obj, "choose_best_model_R2_", trial, ".txt")
+header <- c("GENO_TRT", "N_GENO", "REPETITION", "Estimate", "R2", "R2adj", "AIC", "best_model")
+write.table(t(header), file = outputfile, sep = ",", quote = FALSE, col.names = FALSE, row.names = FALSE)
+
+for (geno_trt_id in unique_geno_trt) {
+  
+  #Subset data for current GENO_TRT
+  subset_i <- df_comparaison_AIC[df_comparaison_AIC$GENO_TRT == geno_trt_id, ]
+  
+  if (nrow(subset_i) == 0 || all(is.na(subset_i$R2))){
+    warning(paste("No data found for:", geno_trt_id))
+    next
+  }
+  
+    if (nrow(subset_i) == 1) {
+    warning(paste("Only one model, no comparison possible:", geno_trt_id))
+    next
+  }
+  
+  
+#  Find the row with the highest R²
+  index_max <- which.max(subset_i$R2)
+  best_model_row <- subset_i[index_max, ]
+  
+#  Assemble the final row with added best_model column
+  data_R2_i <- data.frame(
+    GENO_TRT   = geno_trt_id,
+    best_model_row,
+    best_model = paste("best_model", best_model_row$Model, sep = "_"),
+    stringsAsFactors = FALSE
+  )
+  
+ # Remove unnecessary or duplicate columns if they exist
+  data_R2_i <- data_R2_i[, !(names(data_R2_i) %in% c("Model", "GENO_TRT.1"))]
+  
+#  Write the row to the output file
+  write.table(data_R2_i, file = outputfile, sep = ",", quote = FALSE, col.names = FALSE, row.names = FALSE, append = TRUE)
+  
+  print(paste("Processed:", geno_trt_id))
+}
+
+
+```
+
+```{r what is the best model R2}
+outputfile <- paste0(opPATH.obj, "choose_best_model_R2_", trial, ".txt")
+
+best_model=read.table(outputfile, sep = ",", header = TRUE)
+
+print(paste("best model R2 affine for (%) ", sum(best_model$best_model == "best_model_affine")/nrow(best_model)*100))
+print(paste("best model best_model  polynomial for (%) ", sum(best_model$best_model == "best_model_polynomial")/nrow(best_model)*100))
+print(paste("best model R2 linear for (%) ",sum(best_model$best_model == "best_model_linear")/nrow(best_model)*100))
+print(paste("best model R2 breakpoint for (%) ",sum(best_model$best_model == "best_model_breakpoint")/nrow(best_model)*100))
+
+```
+
+
+# 4: plot TR_RATE - ETREF per genotype (1 plot per genotype with 4 reps, slope for each rep)
+- plot TR_rate -- ETREF
+
+
+```{r plot each genotype 4 models, eval = FALSE  }
+# not activate for pdf notebook
+rep_colors <- c(
+  "1" = "#A65E00",  
+  "2" = "#1C64A6",  
+  "3" = "#006747", 
+  "4" = "#7A2E00"  
+)
+
+
+#remove  "tube vide"
+
+data$N_GENO <- as.factor(data$N_GENO)
+data <- data %>% 
+  filter(N_GENO != "", N_GENO != "VIDE")
+
+data$N_GENO <- as.factor(data$N_GENO)
+nlevels(data$N_GENO)
+
+for (i in levels(data$N_GENO)) {
+  
+    subset <- data %>% filter(N_GENO == i)
+  
+#Keep only repetitions with at least 3 complete cases for TR_RATE and ETREF
+  valid_reps <- subset %>%
+    group_by(REPETITION) %>%
+    filter(sum(!is.na(TR_RATE) & !is.na(ETREF)) >= 3) %>%
+    pull(REPETITION) %>%
+    unique()
+  
+    subset <- subset %>% filter(REPETITION %in% valid_reps)
+  
+  if ((length(valid_reps) > 0)==TRUE) {
+ #   Proceed with your slopes_df calculation safely now
+  slopes_df <- subset %>%
+    group_by(REPETITION) %>%
+    summarise(slope = {
+      fit_data <- na.omit(data.frame(TR_RATE, ETREF))
+      fit_data <- subset(., REPETITION == unique(REPETITION))
+      if(nrow(fit_data) < 3) return(NA_real_)
+      coef(lm(TR_RATE ~ 0 + ETREF, data = fit_data))[1]
+    }) %>%
+    filter(!is.na(slope)) %>%
+    mutate(REPETITION = as.factor(REPETITION))
+  
+    
+#  1. Linear model without intercept (intercept = 0)
+  slopes_df <- subset %>%
+    group_by(REPETITION) %>%
+    summarise(slope = coef(lm(TR_RATE ~ 0 + ETREF))[["ETREF"]]) %>%
+    mutate(REPETITION = as.factor(REPETITION))
+
+  p1 <- ggplot(subset, aes(x = ETREF, y = TR_RATE, color = factor(REPETITION))) +
+    geom_point() +
+    geom_smooth(method = "lm", formula = y ~ 0 + x, se = FALSE) +
+    geom_abline(data = slopes_df, aes(slope = slope, intercept = 0, color = REPETITION),
+                linetype = "dashed", show.legend = FALSE) +
+    scale_x_continuous(limits = c(0, NA)) +
+    stat_regline_equation(
+      aes(label = paste(..eq.label.., ..adj.rr.label.., sep = "~~~")),
+      formula = y ~ 0 + x,
+      parse = TRUE,
+      size = 3,
+      label.x.npc = "left",
+      label.y.npc = "top",
+      show.legend = FALSE) +
+    labs(title = paste0("Linear model (intercept = 0) - Genotype ", i),
+         x = "ETref (mm.h⁻¹)", y = "TR (g.h⁻¹.cm⁻²)", color = "Repetition") +
+    scale_color_manual(values = rep_colors) +
+    theme_bw(base_size = 14)
+
+#  2. Affine model (intercept ≠ 0)
+  coefs_affine <- subset %>%
+    group_by(REPETITION) %>%
+    summarise(
+      intercept = coef(lm(TR_RATE ~ ETREF))[["(Intercept)"]],
+      slope = coef(lm(TR_RATE ~ ETREF))[["ETREF"]]
+    ) %>%
+    mutate(REPETITION = as.factor(REPETITION))
+
+  p2 <- ggplot(subset, aes(x = ETREF, y = TR_RATE, color = factor(REPETITION))) +
+    geom_point() +
+    geom_smooth(method = "lm", formula = y ~ x, se = FALSE) +
+    geom_abline(data = coefs_affine,
+                aes(intercept = intercept, slope = slope, color = REPETITION),
+                linetype = "dashed", show.legend = FALSE) +
+    scale_x_continuous(limits = c(0, NA)) +
+    stat_regline_equation(
+      aes(label = paste(..eq.label.., ..adj.rr.label.., sep = "~~~")),
+      formula = y ~ x,
+      parse = TRUE,
+      size = 3,
+      label.x.npc = "left",
+      label.y.npc = "top",
+      show.legend = FALSE) +
+    labs(title = paste0("Affine model (intercept ≠ 0) - Genotype ", i),
+         x = "ETref (mm.h⁻¹)", y = "TR (g.h⁻¹.cm⁻²)", color = "Repetition") +
+    scale_color_manual(values = rep_colors) +
+    theme_bw(base_size = 14)
+
+ # 3. Polynomial model (degree 2)
+pred_poly_sep <- subset %>%
+  group_by(REPETITION) %>%
+  filter(n_distinct(ETREF) >= 3) %>%  #S'assurer qu'on a assez de points
+  group_modify(~ {
+    mod <- lm(TR_RATE ~ poly(ETREF, 2), data = .x)
+    max_x <- max(.x$ETREF)
+    x_seq <- seq(0, max_x * 1.3, length.out = 200)
+    pred <- predict(mod, newdata = data.frame(ETREF = x_seq))
+    tibble(ETREF = x_seq, TR_RATE = pred, is_extrapolated = x_seq > max_x)
+  }) %>%
+  ungroup()
+
+
+
+  pred_poly_sep$REPETITION <- factor(pred_poly_sep$REPETITION)
+
+  p3 <- ggplot(subset, aes(x = ETREF, y = TR_RATE, color = factor(REPETITION))) +
+    geom_point() +
+    geom_line(data = pred_poly_sep %>% filter(!is_extrapolated),
+              aes(x = ETREF, y = TR_RATE, color = REPETITION), size = 1) +
+    geom_line(data = pred_poly_sep %>% filter(is_extrapolated),
+              aes(x = ETREF, y = TR_RATE, color = REPETITION), size = 1, linetype = "dashed") +
+    scale_x_continuous(limits = c(0, NA)) +
+    labs(title = paste0("Polynomial model (degree 2) - Genotype ", i),
+         x = "ETref (mm.h⁻¹)", y = "TR (g.h⁻¹.cm⁻²)", color = "Repetition") +
+    scale_color_manual(values = rep_colors) +
+    theme_bw(base_size = 14)
+
+ # 4. Segmented (breakpoint) model
+  p4 <- ggplot(subset, aes(x = ETREF, y = TR_RATE, color = factor(REPETITION))) +
+    geom_point() +
+    labs(
+      title = paste0("Segmented (breakpoint) model - Genotype ", i),
+       x = "ETref (mm.h⁻¹)", y = "TR (g.h⁻¹.cm⁻²)",
+      color = "Repetition"
+    ) +
+    scale_color_manual(values = rep_colors) +
+    theme_bw(base_size = 14)
+
+  all_bp_data <- data.frame()
+  annotations <- data.frame()
+
+  for (rep in unique(subset$REPETITION)) {
+    subset_rep <- subset %>% filter(REPETITION == rep)
+
+    bp_model <- tryCatch({
+      lm_base <- lm(TR_RATE ~ ETREF, data = subset_rep)
+      segmented(lm_base, seg.Z = ~ETREF)
+    }, error = function(e) NULL)
+
+    if (!is.null(bp_model)) {
+      bp_data <- data.frame(ETREF = seq(min(subset_rep$ETREF), max(subset_rep$ETREF), length.out = 100))
+      bp_data$TR_RATE <- predict(bp_model, newdata = bp_data)
+      bp_data$REPETITION <- rep
+
+      all_bp_data <- rbind(all_bp_data, bp_data)
+
+      slope1 <- signif(slope(bp_model)$ETREF[1], 3)
+      slope2 <- signif(slope(bp_model)$ETREF[2], 3)
+      psi <- signif(bp_model$psi[2], 3)
+      r2_bp <- signif(summary(bp_model)$r.squared, 3)
+
+      annotations <- rbind(annotations, data.frame(
+        REPETITION = rep,
+        label = paste0("Rep ", rep, ": S1=", slope1, ", S2=", slope2,
+                       ", Psi=", psi, ", R²=", r2_bp),
+        x = max(subset_rep$ETREF),
+        y = max(subset_rep$TR_RATE)
+      ))
+    }
+  }
+
+  if (nrow(all_bp_data) > 0) {
+    p4 <- p4 +
+      geom_line(data = all_bp_data, aes(x = ETREF, y = TR_RATE, group = REPETITION), size = 1)
+  }
+
+  if (nrow(annotations) > 0) {
+    p4 <- p4 +
+      geom_text(data = annotations, aes(x = x, y = y, label = label, color = factor(REPETITION)),
+                hjust = 1.1, vjust = 1.1, size = 4)
+  } else {
+    p4 <- ggplot() +
+      annotate("text", x = 0.5, y = 0.5, label = "Segmented models failed", size = 5) +
+      theme_void() +
+      labs(title = paste0("Segmented (breakpoint) model - Genotype ", i))
+  }
+
+ #  Combine plots 2x2
+  full_plot <- (p1 | p2) / (p3 | p4)
+
+  # Save combined plot
+  ggsave(filename = paste0(opPATH.fig, "TR_ETREF_models_", trial, "_GENO", i, ".png"), plot = full_plot,
+         width = 14, height = 10, dpi = 300)
+
+}}
+    
+```
+
+
+
+
+
+##6: creation of df of coef_intercept with 1 slope value per pot
+```{r coef_intercept}
+##bind all slope of each reps in only one file
+files_int <- paste0(opPATH.obj, "slope_INTERCEPT_geno_rep", 1:4, "_", trial, ".txt")
+coef_intercept_geno <- do.call(rbind, lapply(files_int, read.table, sep = ",", header= TRUE))
+coef_intercept = coef_intercept_geno 
+coef_intercept = na.omit(coef_intercept)
+
+
+
+coef_intercept <- coef_intercept %>%
+  rename(
+    N_GENO = GENOTYPE,
+    MODEL = FORMULA
+  )
+
+
+coef_intercept$GENO_TRT= paste(coef_intercept$N_GENO, coef_intercept$REPETITION, sep = "_")
+
+
+
+
+write.table(x=coef_intercept, file= paste0(opPATH.results, "coef_intercept_raw_", trial, ".csv"), col.names = TRUE, row.names = FALSE, sep = ";")
+
+```
+
+
+
+```{r}
+data = save_before_cleaning
+data$GENO_TRT = paste0(data$N_GENO, "_", data$REPETITION) 
+
+coef_intercept_metad = merge(x=coef_intercept, y= data, by = "GENO_TRT")
+
+
+coef_intercept_metad$REPETITION = coef_intercept_metad$REPETITION.y
+coef_intercept_metad$N_GENO = coef_intercept_metad$N_GENO.x
+
+coef_intercept_metad <- distinct(coef_intercept_metad, GENO_TRT, .keep_all = TRUE)
+coef_intercept_metad <- coef_intercept_metad %>% select(-N_GENO.x, -N_GENO.y)
+coef_intercept_metad <- coef_intercept_metad %>% select(-REPETITION.x, -REPETITION.y)
+
+
+
+head(coef_intercept_metad$N_GENO)
+head(coef_intercept_metad$REPETITION)
+head(coef_intercept_metad$BLOCK)
+
+coef_intercept_metad = na.omit(coef_intercept_metad)
+data = coef_intercept_metad
+
+data$N_GENO=as.factor(data$N_GENO)
+data$REPETITION=as.factor(data$REPETITION) 
+data$BLOCK=as.factor(data$BLOCK)
+data$WEEK=as.factor(data$WEEK)
+
+
+```
+
+
+# variability among repetitions/block before cleaning : 
+
+```{r }
+### boxplot to visualize variability among repetitions / BLOCK /  ... 
+ggplot(data, aes(x= data$REPETITION, y=data$SLOPE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK, y=data$SLOPE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$WEEK, y=data$SLOPE)) + 
+  geom_boxplot()
+
+```
+
+
+
+
+
+
+```{r histogram raw data slope  }
+
+#Clean  data (remove NAs)
+slope_values <- na.omit(data$SLOPE)
+df <- data.frame(SLOPE = slope_values)
+mean_slope <- mean(slope_values)
+sd_slope <- sd(slope_values)
+
+#Create histogram with normal curve using ggplot2
+p <- ggplot(df, aes(x = SLOPE)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "lightblue", color = "black") +
+  stat_function(fun = dnorm, args = list(mean = mean_slope, sd = sd_slope), color = "darkred", size = 1.2) +
+  labs(
+    title = "Histogram of Slope y=ax - LTP - SG - 2024",
+    x = "Slope y=ax ",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+print(p)
+
+```
+
+
+```{r sorting outliers slope}
+## there are extreme high values on the boxplot, and on raw hist, super low R2 need to be removed
+data$R2[data$R2 < 0.8] <- NA
+data= na.omit(data)
+data<-data %>% arrange(SLOPE) ##trie par ordre croissant de pente
+data <- data[-(nrow(data)),] ###enleve la dernière ligne 
+data <- data[-(nrow(data)),] ###enleve la dernière ligne 
+data <- data[-(nrow(data)),] ###enleve la dernière ligne 
+data <- data[-(nrow(data)),]
+
+data = na.omit(data)
+
+```
+
+
+
+
+
+```{r }
+
+ ggplot(data, aes( y=data$R2)) +
+   geom_boxplot()
+
+ mean(data$R2)
+
+ max(data$R2)
+ min(data$R2)
+
+```
+ 
+
+
+
+
+```{r histogram cleaned data slope  }
+
+#Clean  data (remove NAs)
+slope_values <- na.omit(data$SLOPE)
+df <- data.frame(SLOPE = slope_values)
+mean_slope <- mean(slope_values)
+sd_slope <- sd(slope_values)
+
+#Create histogram with normal curve using ggplot2
+p <- ggplot(df, aes(x = SLOPE)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "lightblue", color = "black") +
+  stat_function(fun = dnorm, args = list(mean = mean_slope, sd = sd_slope), color = "darkred", size = 1.2) +
+  labs(
+    title = "Histogram of Slope y=ax - LTP - SG - 2024",
+    x = "Slope y=ax ",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+print(p)
+
+```
+
+
+```{r }
+
+ ggplot(data, aes( y=data$R2)) +
+   geom_boxplot()
+
+```
+ # variability among repetitions after cleaning : 
+
+```{r outliers after cleaning}
+### boxplot to visualize variability among repetitions / BLOCK /  ... 
+ggplot(data, aes(x= data$REPETITION, y=data$SLOPE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK, y=data$SLOPE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$WEEK, y=data$SLOPE)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK_WEEK, y=data$SLOPE)) + 
+  geom_boxplot()
+```
+
+
+```{r anova among block rep}
+model<-lm(SLOPE~REPETITION, data = data)
+aov<-Anova(model)
+print(aov)
+
+model<-lm(SLOPE~BLOCK, data = data)
+aov<-Anova(model)
+print(aov)
+
+model<-lm(SLOPE~WEEK, data = data)
+aov<-aov(model)
+print(aov)
+
+model<-lm(SLOPE~BLOCK_WEEK, data = data)
+aov<-aov(model)
+print(aov)
+
+
+```
+ 
+
+```{r output }
+
+write.table(x=data, file= paste0(opPATH.results, "slope_values_cleaned", trial, ".csv"), col.names = TRUE, row.names = FALSE, sep = ";")
+```
+
+
+
+```{r}
+min(coef_intercept$R2)
+max(coef_intercept$R2)
+mean(coef_intercept$R2)
+
+
+ R2_max <- which.max(coef_intercept$R2) ## find rownameswith max value R2
+  row_max =  coef_intercept[R2_max, ]
+ row_max
+
+```
+
+
+### 7: description variable slope coefficient 
+
+```{r descriptive stat, echo = FALSE}
+df_desc = as.data.frame(stat.desc(x=data$SLOPE))
+
+knitr::kable(df_desc, caption = paste("descriptive statistics", trial))
+```
+
+
+```{r}
+#### week only source of variation here (no variation due to repetition,  block, )
+model_slope <- lmer( SLOPE ~ 1 + (1 | N_GENO) + (1 | WEEK), data = data)
+print(model_slope)
+```
+
+
+```{r}
+model_slope_reduced <- lmer( SLOPE ~ 1  + (1 | WEEK),  data = data)
+print(model_slope_reduced)
+
+```
+
+
+```{r}
+anova(model_slope_reduced, model_slope)
+```
+
+```{r}
+dt <- coef_intercept_metad
+
+# Ajuste le modèle avec l'optimiseur 'bobyqa'
+model <- lmer(SLOPE ~ 1 + (1 | N_GENO) + (1 | WEEK),
+              data = dt)
+
+# Résumé du modèle
+summary(model)
+```
+
+
+```{r}
+
+hr <- H2cal(data = dt,
+            trait = "SLOPE",
+            gen.name = "N_GENO",
+            rep.n = 4,
+            fixed.model = "0 + N_GENO + (1 | WEEK)",
+            random.model = "1 + (1 | N_GENO) + (1 | WEEK)",
+            emmeans = TRUE,
+            plot_diag = TRUE,
+            outliers.rm = TRUE)
+
+last_plot <- recordPlot()
+
+df_output = as.data.frame(t(hr$tabsmr))
+
+knitr::kable(df_output, caption = paste0("Summary heritability estimates ", trait_name, " ", trial))
+
+
+
+```
+
+
+
+
+```{r heritability output}
+
+# Save as image (PNG or PDF)
+png(filename = here::here(paste0(opPATH.fig, "HERITABILITY_", trait_name, "_", trial, ".png")),
+    width = 6, height = 4, units = "in", res = 300)
+replayPlot(last_plot)
+dev.off()
+```
+
+
+# blups :
+
+```{r blups}
+
+blup_result = as.data.frame(hr$blups)
+
+blup_result <- blup_result %>%
+  left_join(data[, c("N_GENO", "GENO_NAME")], by = "N_GENO")
+
+blup_result <- unique(blup_result)
+nrow(blup_result)
+save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name, "_", trial, ".RData"))  
+write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name, "_", trial, ".csv"), dec = ".", sep = ";")
+```
+
+
+
+# mean per genotype :
+
+
+```{r mean per geno}
+SLOPE_mean<-as.data.frame(with(data, tapply(data$SLOPE, N_GENO, mean)))
+  SLOPE_mean = cbind(rownames(SLOPE_mean),  SLOPE_mean$`with(data, tapply(data$SLOPE, N_GENO, mean))`)
+colnames(SLOPE_mean) = c("N_GENO", "SLOPE")
+SLOPE_mean<-as.data.frame(SLOPE_mean)
+SLOPE_mean$SLOPE = as.numeric(SLOPE_mean$SLOPE)
+SLOPE_mean$N_GENO = as.factor(SLOPE_mean$N_GENO)
+nrow(SLOPE_mean) # nb genotypes
+
+## add genotypes names for future association studies
+
+metadata_geno <- save_before_cleaning[!duplicated(save_before_cleaning$N_GENO), ]
+nrow(metadata_geno) # nb genotypes before cleaning 
+
+SLOPE_mean <- merge(SLOPE_mean, metadata_geno, by = "N_GENO", all.x = TRUE)
+SLOPE_mean <- SLOPE_mean %>% select(N_GENO, SLOPE, GENO_NAME)
+
+
+write.table(SLOPE_mean, file = paste0(opPATH.results,trait_name, "_mean_", trial, ".csv"), dec = ".", sep = ";")
+
+
+```
