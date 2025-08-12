@@ -1,0 +1,94 @@
+---
+title: "Plot ETref among experiments"
+author: "Laura Gregoire"
+date: "`r Sys.Date()`"
+---
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+
+
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(repos = c(CRAN = "https://cran.r-project.org"))
+# install.packages("tinytex")
+# tinytex::install_tinytex()
+tinytex::is_tinytex()
+rm(list = ls())
+```
+
+```{r import data}
+here::here()
+
+opPATH.obj= "./saved_objects/"
+  if (!dir.exists(opPATH.obj)) dir.create(opPATH.obj, recursive = TRUE)
+
+
+opPATH.results= "./results/"
+  if (!dir.exists(opPATH.results)) dir.create(opPATH.results, recursive = TRUE)
+
+
+opPATH.data= "./data/"
+  if (!dir.exists(opPATH.data)) dir.create(opPATH.data, recursive = TRUE)
+
+
+opPATH.fig= "./figures/"
+  if (!dir.exists(opPATH.fig)) dir.create(opPATH.fig, recursive = TRUE)
+
+ETREF_HTP_LTP <- read.csv(here::here(opPATH.data, "ETREF_HTP_LTP.csv"), dec = ".", sep = ";", fileEncoding = "UTF-8" )
+ETREF_LYSI <- read.csv(here::here(opPATH.data, "ETREF_LYSI.csv"), dec = ".", sep = ";",  fileEncoding = "UTF-8" )
+
+
+ETREF_HTP_LTP$START_END = as.factor(ETREF_HTP_LTP$START_END)
+ETREF_HTP_LTP$START_END <- factor(ETREF_HTP_LTP$START_END, levels = c( "8h-12h","12h-15h","15h-17h30","17h30-8h"))
+ETREF_HTP_LTP$TRIAL = as.factor(ETREF_HTP_LTP$TRIAL)
+
+ETREF_LYSI$SPECIES = as.factor(ETREF_LYSI$SPECIES)
+ETREF_LYSI$DURATION_DAY = as.factor(ETREF_LYSI$DURATION_DAY)
+
+```
+
+```{r plot ETref}
+# LTP_HTP = ETREF_all_trials 
+# LTP_HTP = na.omit(LTP_HTP$ET_MM_DAY)
+p1 <- 
+  ggplot(data = ETREF_HTP_LTP, aes(x = TRIAL, y = ET_MM_HOUR, color = START_END)) +
+  geom_point(aes(group = START_END)) +
+  labs(x = "Trial", y = "ETref (mm/h)", color = "Interval (hour)") +
+    scale_y_continuous(name = "ETref (mm/h)",
+     breaks = seq(0, 3.5, 0.5))+
+   
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+
+    ggtitle("ETref per trial  (mm/h)")
+
+
+p2 <-
+  ggplot(data = ETREF_LYSI, aes(x = SPECIES, y = ETREF_LYSI$ET_MM_DAY, colour = DURATION_DAY )) +
+  geom_point(aes(group = DURATION_DAY)) +
+  labs(x = "Crop", y = "ETref (mm/day)", color = "Interval (day)") +
+  geom_point(aes(y = ET_MM_DAY), size = 3) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+    ggtitle("ETref lysimeter (mm/day)") +
+  scale_y_continuous(name = "ETref (mm/day)",
+     breaks = seq(0, 17, 1))
+
+  
+  
+plot_ETREF=grid.arrange(p1, p2, ncol = 2)
+
+
+
+#Save the plot
+ggsave(
+  filename = paste0(opPATH.fig, "ETREF_each_trial.png"),
+  plot = plot_ETREF,
+  width = 6,
+  height = 4
+)
+
+```
+
