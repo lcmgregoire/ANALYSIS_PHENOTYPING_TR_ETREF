@@ -1,0 +1,265 @@
+---
+title: "Correlation traits "
+author: "Laura Gregoire"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(repos = c(CRAN = "https://cran.r-project.org"))
+# install.packages("tinytex")
+# tinytex::install_tinytex()
+tinytex::is_tinytex()
+rm(list = ls())
+```
+
+
+
+```{r wd librairies}
+
+
+library ("corrplot")  # for corelation plot
+library("RColorBrewer") # for colorblind-friendly and high-contrast colors
+library("dplyr")
+library("smplot2")
+
+here::here()
+
+opPATH.obj= "./saved_objects/"
+  if (!dir.exists(opPATH.obj)) dir.create(opPATH.obj, recursive = TRUE)
+
+
+opPATH.results= "./results/"
+  if (!dir.exists(opPATH.results)) dir.create(opPATH.results, recursive = TRUE)
+
+
+opPATH.data= "./data/"
+  if (!dir.exists(opPATH.data)) dir.create(opPATH.data, recursive = TRUE)
+
+
+opPATH.fig= "./figures/"
+  if (!dir.exists(opPATH.fig)) dir.create(opPATH.fig, recursive = TRUE)
+```
+
+#### sorghum trials correlations (HTP 2023, LTP 2024, Lysimeter 2024)
+
+
+```{r import sorghum data }
+# SORGHUM 
+
+# LYSI 2024
+## TE
+TE_mean_LYSI_SG_2024 <- read.csv(here::here(opPATH.results, "TE_mean_LYSI_SG_2024.csv"), dec = ".", sep = ";")
+names(TE_mean_LYSI_SG_2024)[names(TE_mean_LYSI_SG_2024) == "TE"] <- "TEplant"
+
+## SLOPE 
+SLOPE_mean_LYSI_SG_2024  <- read.csv(here::here(opPATH.results, "SLOPE_mean_LYSI_SG_2024.csv"), dec = ".", sep = ";")
+names(SLOPE_mean_LYSI_SG_2024)[names(SLOPE_mean_LYSI_SG_2024) == "SLOPE"] <- "SLOPE LYSIMETER" # to differentiate between the slopes of trials
+# LTP 2024
+## SLOPE 
+SLOPE_mean_LTP_SG_2024<- read.csv(here::here(opPATH.results, "SLOPE_mean_LTP_SG_2024.csv"), dec = ".", sep = ";")
+names(SLOPE_mean_LTP_SG_2024)[names(SLOPE_mean_LTP_SG_2024) == "SLOPE"] <- "SLOPE LTP" # to differentiate between the slopes of the two trials
+
+## ROOT AREA
+ROOT_AREA_mean_LTP_SG_2024 <- read.csv(here::here(opPATH.results, "ROOT_AREA_mean_LTP_SG_2024.csv"), dec = ".", sep = ";")
+names(ROOT_AREA_mean_LTP_SG_2024)[names(ROOT_AREA_mean_LTP_SG_2024) == "ROOT_AREA_TOTAL"] <- "ROOT AREA" 
+
+## ROOT SHOOT 
+ROOT_SHOOT_mean_LTP_SG_2024  <- read.csv(here::here(opPATH.results, "ROOT_SHOOT_mean_LTP_SG_2024.csv"), dec = ".", sep = ";")
+names(ROOT_SHOOT_mean_LTP_SG_2024)[names(ROOT_SHOOT_mean_LTP_SG_2024) == "ROOT_SHOOT"] <- "ROOT SHOOT" 
+
+# HTP
+SLOPE_mean_HTP_SG= read.table(here::here(opPATH.results, "PHENO_HTP.txt"), header = TRUE)
+names(SLOPE_mean_HTP_SG)[names(SLOPE_mean_HTP_SG) == "GENOTYPE"] <- "GENO_NAME" # to differentiate between the slopes of the two trials
+names(SLOPE_mean_HTP_SG)[names(SLOPE_mean_HTP_SG) == "ESTIMATE_HTP"] <- "SLOPE HTP" # to differentiate between the slopes of the two trials
+
+## SLOPE
+```
+
+
+```{r merge sorghum df }
+
+
+# create a list all  dfs
+data_SG_list <- list(TE_mean_LYSI_SG_2024, SLOPE_mean_LYSI_SG_2024, SLOPE_mean_LTP_SG_2024,ROOT_AREA_mean_LTP_SG_2024, ROOT_SHOOT_mean_LTP_SG_2024, SLOPE_mean_HTP_SG )
+save(data_SG_list, file =  paste0(opPATH.obj, "data_SG_list.RData"))
+
+# Merge them all by N_GENO and GENO_NAME
+
+data_SG <- Reduce(function(x, y) merge(x, y, by = c( "GENO_NAME"), all = TRUE), data_SG_list) # to fix correlactly find N_GENO for GENO NAME in HTP df 
+nrow(data_SG)
+
+data_SG$N_GENO = as.factor(data_SG$N_GENO)
+data_SG$GENO_NAME = as.factor(data_SG$GENO_NAME)
+
+data_SG <- subset(data_SG, select = -c(N_GENO.y, N_GENO.x )) ## remove N_GENO suuplementary 
+data_SG <- subset(data_SG, select = -c(N_GENO.y, N_GENO.x )) ## remove N_GENO suuplementary 
+
+data_SG <- data_SG %>% relocate(N_GENO, .after = 1)
+
+save(data_SG, file =  paste0(opPATH.obj, "data_SG.RData"))
+
+
+```
+
+
+
+```{r correlation SG}
+
+data_SG_subset <- na.omit(data_SG[, 3:ncol(data_SG)]) ## does not accept NA 
+# Recompute correlation and p-values
+cor_SG <- cor(data_SG_subset, method = "pearson")  ##  Compute correlations and p-values
+res_SG <- cor.mtest(data_SG_subset, conf.level = 0.95)
+my_colors <- brewer.pal(3, "Dark2")[1:3]
+
+my_colors <- c(my_colors[1], my_colors[1], my_colors[2], my_colors[2], my_colors[2],my_colors[3] ) ## 2 lysi Trait, 3 LTP trait, 1 HTP trait 
+
+png(filename = paste0(opPATH.fig, "correlation_SG_LTP_LYSI_HTP.png"), width = 800, height = 800)
+
+
+# Plot correlation with coefficients shown
+plot_SG = corrplot(cor_SG, 
+         p.mat = res_SG$p, 
+         sig.level = 0.05, 
+         method = "circle", 
+         type = "upper",
+         tl.col = my_colors, 
+         tl.srt = 45,         # rotate labels
+         addCoef.col = "black",  # add Pearson coefficients in black
+         number.cex = 0.7        # size of the numbers
+)
+
+
+dev.off()
+
+```
+
+
+#### pearl millet trials correlations (LTP 2025, Lysimeter 2025)
+
+```{r import pearl millet data }
+# PEARL MILLET 
+# LYSI 2025
+## TE
+TE_mean_LYSI_PM_2025 <- read.csv(here::here(opPATH.results, "TE_mean_LYSI_PM_2025.csv"), dec = ".", sep = ";")
+names(TE_mean_LYSI_PM_2025)[names(TE_mean_LYSI_PM_2025) == "TE"] <- "TEplant"
+
+## SLOPE 
+SLOPE_mean_LYSI_PM_2025 <- read.csv(here::here(opPATH.results, "SLOPE_mean_LYSI_PM_2025.csv"), dec = ".", sep = ";")
+names(SLOPE_mean_LYSI_PM_2025)[names(SLOPE_mean_LYSI_PM_2025) == "SLOPE"] <- "SLOPE LYSIMETER" # to differentiate between the slopes of the two trials
+# LTP 2025
+## SLOPE 
+SLOPE_mean_LTP_PM_2025 <- read.csv(here::here(opPATH.results, "SLOPE_mean_LTP_PM_2025.csv"), dec = ".", sep = ";")
+names(SLOPE_mean_LTP_PM_2025)[names(SLOPE_mean_LTP_PM_2025) == "SLOPE"] <- "SLOPE LTP" # to differentiate between the slopes of the two trials
+
+## ROOT AREA
+ROOT_AREA_mean_LTP_PM_2025 <- read.csv(here::here(opPATH.results, "ROOT_AREA_mean_LTP_PM_2025.csv"), dec = ".", sep = ";")
+names(ROOT_AREA_mean_LTP_PM_2025)[names(ROOT_AREA_mean_LTP_PM_2025) == "ROOT_AREA_TOTAL"] <- "ROOT AREA"
+
+## ROOT SHOOT 
+ROOT_SHOOT_mean_LTP_PM_2025  <- read.csv(here::here(opPATH.results, "ROOT_SHOOT_mean_LTP_PM_2025.csv"), dec = ".", sep = ";")
+names(ROOT_SHOOT_mean_LTP_PM_2025)[names(ROOT_SHOOT_mean_LTP_PM_2025) == "ROOT_SHOOT"] <- "ROOT SHOOT"
+
+nrow(TE_mean_LYSI_PM_2025)
+nrow(SLOPE_mean_LYSI_PM_2025)
+nrow(SLOPE_mean_LTP_PM_2025)
+nrow(ROOT_AREA_mean_LTP_PM_2025)
+nrow(ROOT_SHOOT_mean_LTP_PM_2025)
+
+
+```
+
+```{r merge PM df by genotype }
+
+
+# create a list all  dfs
+data_PM_list <- list(TE_mean_LYSI_PM_2025, SLOPE_mean_LYSI_PM_2025, SLOPE_mean_LTP_PM_2025,ROOT_AREA_mean_LTP_PM_2025, ROOT_SHOOT_mean_LTP_PM_2025 )
+save(data_PM_list, file =  paste0(opPATH.obj, "data_PM_list.RData"))
+
+# Merge them all by N_GENO
+data_PM <- Reduce(function(x, y) merge(x, y, by = c("N_GENO", "GENO_NAME"), all = TRUE), data_PM_list)
+nrow(data_PM)
+
+data_PM$N_GENO = as.factor(data_PM$N_GENO)
+data_PM$GENO_NAME = as.factor(data_PM$GENO_NAME)
+
+```
+
+```{r correlation PM }
+
+data_PM_subset <- na.omit(data_PM[, 3:ncol(data_PM)]) ## does not accept NA 
+# Recompute correlation and p-values
+cor_PM <- cor(data_PM_subset, method = "pearson")  ##  Compute correlations and p-values
+res_PM <- cor.mtest(data_PM_subset, conf.level = 0.95)
+my_colors <- brewer.pal(3, "Dark2")[1:2]
+
+my_colors <- c(my_colors[1], my_colors[1], my_colors[2], my_colors[2], my_colors[2]) ## 2 lysi Trait, 3 LTP trait
+
+png(filename = paste0(opPATH.fig, "correlation_PM_LTP_LYSI.png", width = 800, height = 800))
+
+
+
+# Plot correlation with coefficients shown
+plot_PM = corrplot(cor_PM, 
+         p.mat = res_PM$p, 
+         sig.level = 0.05, 
+         method = "circle", 
+         type = "upper",
+         tl.col = my_colors, 
+         tl.srt = 45,         # rotate labels
+         addCoef.col = "black",  # add Pearson coefficients in black
+         number.cex = 0.7        # size of the numbers
+)
+
+dev.off()
+
+
+```
+
+
+```{r}
+
+# --- Save PNG with 2 plots side by side ---
+png(paste(opPATH.fig,"corrplot_SG_PM.png"), width = 2000, height = 1000, res = 150)
+
+
+par(mfrow = c(1, 2))  # 1 row, 2 columns
+
+
+# Plot correlation with coefficients shown
+plot_SG = corrplot(cor_SG, 
+         p.mat = res_SG$p, 
+         sig.level = 0.05, 
+         method = "circle", 
+         type = "upper",
+         tl.col = my_colors, 
+         tl.srt = 45,         # rotate labels
+         addCoef.col = "black",  # add Pearson coefficients in black
+         number.cex = 0.7        # size of the numbers
+)
+
+mtext("a) Sorghum", side = 3, line = 1, cex = 1.2, font = 2)
+
+
+
+# Plot correlation with coefficients shown
+plot_PM = corrplot(cor_PM, 
+         p.mat = res_PM$p, 
+         sig.level = 0.05, 
+         method = "circle", 
+         type = "upper",
+         tl.col = my_colors, 
+         tl.srt = 45,         # rotate labels
+         addCoef.col = "black",  # add Pearson coefficients in black
+         number.cex = 0.7        # size of the numbers
+)
+mtext("b) Pearl millet", side = 3, line = 1, cex = 1.2, font = 2)
+dev.off()
+
+```
+
+
