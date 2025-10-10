@@ -2106,6 +2106,14 @@ save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name, "_", trial, ".R
 write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name, "_", trial, ".csv"), dec = ".", sep = ";")
 ```
 
+```{r}
+
+df_desc = as.data.frame(stat.desc(x=coef_intercept_metad$SLOPE))
+
+knitr::kable(df_desc, caption = paste("descriptive statistics", trial))
+print(df_desc)
+```
+```
 
 
 
