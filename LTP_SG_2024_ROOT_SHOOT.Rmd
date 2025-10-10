@@ -1,0 +1,373 @@
+---
+title: "Analysis Root Shoot LTP Sorghum 2024"
+author: "Laura Gregoire"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(repos = c(CRAN = "https://cran.r-project.org"))
+# install.packages("tinytex")
+# tinytex::install_tinytex()
+tinytex::is_tinytex()
+rm(list = ls())
+```
+
+
+
+
+## STEPS :
+- working directories, packages.. 
+
+### import raw TR data 
+
+```{r wd librairies}
+
+library(ggplot2)
+library(car)
+library(ggpubr)
+library(segmented)
+library(pastecs)
+library(dplyr)
+library(patchwork)
+library(RLRsim)
+library(lme4)
+library(inti)
+
+here::here()
+
+opPATH.obj= "./saved_objects/"
+  if (!dir.exists(opPATH.obj)) dir.create(opPATH.obj, recursive = TRUE)
+
+
+opPATH.results= "./results/"
+  if (!dir.exists(opPATH.results)) dir.create(opPATH.results, recursive = TRUE)
+
+
+opPATH.data= "./data/"
+  if (!dir.exists(opPATH.data)) dir.create(opPATH.data, recursive = TRUE)
+
+
+opPATH.fig= "./figures/"
+  if (!dir.exists(opPATH.fig)) dir.create(opPATH.fig, recursive = TRUE)
+```
+
+
+```{r import data }
+data <- read.csv(here::here(opPATH.data, "DATA_TR_PERIOD_LTP_2024.csv"), dec = ".", sep = ";")
+panel <- read.csv(here::here(opPATH.data, "panel_sorghum.csv"), dec = ".", sep = ";")
+
+
+
+data$N_GENO=as.factor(data$N_GENO)
+data$REPETITION=as.factor(data$REPETITION) 
+data$PERIOD=as.factor(data$PERIOD) 
+data$BLOCK=as.factor(data$BLOCK)
+data$BLOCK_WEEK=as.factor(data$BLOCK_WEEK) 
+data$WEEK=as.factor(data$WEEK)
+
+
+data$GENO_TRT= paste(data$N_GENO, data$REPETITION, sep = "_")
+data$GENO_TRT=as.factor(data$GENO_TRT)
+
+
+data$ROOT_SHOOT=as.numeric(data$ROOT_SHOOT)
+
+
+
+save_before_cleaning = data
+
+
+trial="LTP_SG_2024"
+trait_name = "ROOT_SHOOT"
+```
+
+
+```{r }
+print("phenotypic data loaded")
+```
+
+### 3 : variability among repetitions
+```{r variation before cleaning}
+### boxplot to visualize variability among repetitions / BLOCK / WEEK ... 
+ggplot(data, aes(x= data$REPETITION, y=data$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK, y=data$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK_WEEK, y=data$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$WEEK, y=data$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$ROOT_SHOOT, y=data$ROOT_SHOOT)) + 
+  geom_boxplot()
+```
+
+```{r sorting outliers}
+## sup outliers need to be removed (impossible values)
+count_before = nrow(data)
+ data.RmOut <- data 
+ 
+ 
+
+    out <- boxplot(data.RmOut$ROOT_SHOOT, plot = FALSE)$out # values to remove
+    tf <- which(data.RmOut$ROOT_SHOOT %in% out) # position in the list
+ data.RmOut$ROOT_SHOOT[tf] <- NA
+
+ 
+     out <- boxplot(data.RmOut$ROOT_SHOOT, plot = FALSE)$out # values to remove
+    tf <- which(data.RmOut$ROOT_SHOOT %in% out) # position in the list
+ data.RmOut$ROOT_SHOOT[tf] <- NA
+
+    data.RmOut = na.omit(data.RmOut)
+    count_after = nrow(data.RmOut)
+
+out_tot = count_before - count_after
+    
+paste0("still ", nrow(data.RmOut), " observations on ",  nlevels(data.RmOut$N_GENO), " genotypes ", out_tot, " outliers removed")
+
+
+```
+
+
+### 3 : variability among repetitions
+```{r outliers after cleaning , eval=FALSE}
+### boxplot to visualize variability among repetitions / BLOCK / WEEK ... 
+ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+ggplot(data.RmOut, aes(x= data.RmOut$BLOCK_WEEK, y=data.RmOut$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+
+ggplot(data.RmOut, aes(x= data.RmOut$WEEK, y=data.RmOut$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+ggplot(data.RmOut, aes(x= data.RmOut$ROOT_SHOOT, y=data.RmOut$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+
+
+
+```
+
+logical values ! 
+let's continue with this dataset cleaned
+
+```{r }
+model<-lm(ROOT_SHOOT~REPETITION, data = data)
+aov<-Anova(model)
+print(aov)
+
+
+model<-lm(ROOT_SHOOT~BLOCK, data = data)
+aov<-Anova(model)
+print(aov)
+
+model<-lm(ROOT_SHOOT~BLOCK_WEEK, data = data)
+aov<-aov(model)
+print(aov)
+
+
+model<-lm(ROOT_SHOOT~WEEK, data = data)
+aov<-Anova(model)
+print(aov)
+```
+
+
+
+
+```{r histogram cleaned data }
+
+
+# save after cleaning
+data = data.RmOut
+
+ROOT_SHOOT_values <- na.omit(data$ROOT_SHOOT)
+df <- data.frame(ROOT_SHOOT = ROOT_SHOOT_values)
+mean_ROOT_SHOOT <- mean(ROOT_SHOOT_values)
+sd_ROOT_SHOOT <- sd(ROOT_SHOOT_values)
+
+#Create histogram with normal curve using ggplot2
+p <- ggplot(df, aes(x = ROOT_SHOOT)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "lightblue", color = "black") +
+  stat_function(fun = dnorm, args = list(mean = mean_ROOT_SHOOT, sd = sd_ROOT_SHOOT), color = "darkred", size = 1.2) +
+  labs(
+    title =  paste("Histogram of", trait_name, trial ),
+    x = trait_name,
+    y = "Density"
+  ) +
+  theme_minimal()
+
+
+
+# Save the plot
+ggsave(
+  filename = paste0(opPATH.fig, "HIST_", trait_name, "_" ,trial,".png"),
+  plot = p,
+  width = 6,
+  height = 4
+)
+
+
+print(p)
+```
+
+
+
+```{r descriptive stat }
+df_desc = as.data.frame(stat.desc(x=data$ROOT_SHOOT))
+
+knitr::kable(df_desc, caption = paste("descriptive statistics", trial))
+```
+
+
+
+```{r variation among block rep }
+
+ggplot(data, aes(x= data$WEEK, y=data$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+ggplot(data, aes(x= data$BLOCK, y=data$ROOT_SHOOT)) + 
+  geom_boxplot() # se
+
+
+ggplot(data, aes(x= data$REPETITION, y=data$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+
+ggplot(data, aes(x= data$BLOCK_WEEK, y=data$ROOT_SHOOT)) + 
+  geom_boxplot()
+
+
+```
+
+
+```{r anova among block rep}
+model<-lm(ROOT_SHOOT~REPETITION, data = data)
+aov<-Anova(model)
+print(aov)
+
+
+model<-lm(ROOT_SHOOT~BLOCK, data = data)
+aov<-Anova(model)
+print(aov)
+
+model<-lm(ROOT_SHOOT~BLOCK_WEEK, data = data)
+aov<-aov(model)
+print(aov)
+
+
+model<-lm(ROOT_SHOOT~WEEK, data = data)
+aov<-Anova(model)
+print(aov)
+```
+
+
+```{r anova geno }
+library(lme4)
+model_geno<- lmer( ROOT_SHOOT ~ 1 + (1 | N_GENO) + (1 | BLOCK) + (1 | REPETITION) + (1 | WEEK), data = data)
+print(model_geno)
+
+```
+
+
+```{r model reduced}
+model_reduced<- lmer( ROOT_SHOOT ~ 1  + (1 | BLOCK) + (1 | REPETITION) + (1 | WEEK), data = data)
+print(model_reduced)
+```
+
+
+```{r comparison}
+anova(model_reduced, model_geno)
+
+
+```
+
+
+
+```{r output }
+
+write.table(x=data, file= paste0(opPATH.results, "values_cleaned_",trait_name,"_", trial, ".csv"), col.names = TRUE, row.names = FALSE, sep = ";")
+
+```
+
+
+```{r heritability }
+
+hr <- H2cal(data = data,
+            trait = "ROOT_SHOOT",
+            gen.name = "N_GENO",
+            rep.n = 4,
+            fixed.model = "0 + N_GENO + (1 | BLOCK) + (1 | REPETITION) + (1 | WEEK)",
+            random.model = " 1 + (1 | N_GENO) + (1 | BLOCK) + (1 | REPETITION) + (1 | WEEK)",
+            plot_diag = TRUE,
+            outliers.rm = TRUE)
+
+last_plot <- recordPlot()
+
+df_output = as.data.frame(t(hr$tabsmr))
+
+knitr::kable(df_output, caption = paste0("Summary heritability estimates ", trait_name, " ", trial))
+```
+
+
+
+```{r heritability output}
+
+# Save as image (PNG or PDF)
+png(filename = here::here(paste0(opPATH.fig, "HERITABILITY_", trait_name, "_", trial, ".png")),
+    width = 6, height = 4, units = "in", res = 300)
+replayPlot(last_plot)
+dev.off()
+```
+
+
+
+# blups :
+
+```{r blups}
+
+blup_result = as.data.frame(hr$blups)
+
+blup_result <- merge(blup_result, panel, by = "N_GENO")
+
+
+save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name, "_", trial, ".RData"))  
+write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name, "_", trial, ".csv"), dec = ".", sep = ";")
+```
+
+
+```{r mean per geno}
+ROOT_SHOOT_mean<-as.data.frame(with(data, tapply(data$ROOT_SHOOT, N_GENO, mean)))
+  ROOT_SHOOT_mean = cbind(rownames(ROOT_SHOOT_mean),  ROOT_SHOOT_mean$`with(data, tapply(data$ROOT_SHOOT, N_GENO, mean))`)
+colnames(ROOT_SHOOT_mean) = c("N_GENO", trait_name)
+ROOT_SHOOT_mean<-as.data.frame(ROOT_SHOOT_mean)
+ROOT_SHOOT_mean$N_GENO = as.factor(ROOT_SHOOT_mean$N_GENO)
+
+
+ROOT_SHOOT_mean <- merge(
+  ROOT_SHOOT_mean, 
+  panel, 
+  by = "N_GENO", 
+  all.x = TRUE
+)
+
+write.table(ROOT_SHOOT_mean, file = paste0(opPATH.results,trait_name, "_mean_", trial, ".csv"), dec = ".", sep = ";")
+
+```
+
+
+
+
+
+
