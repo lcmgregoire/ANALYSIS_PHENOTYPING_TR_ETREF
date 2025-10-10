@@ -1,0 +1,214 @@
+---
+title: "Weather plots "
+author: "Laura Gregoire"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(repos = c(CRAN = "https://cran.r-project.org"))
+# install.packages("tinytex")
+# tinytex::install_tinytex()
+tinytex::is_tinytex()
+rm(list = ls())
+```
+
+
+```{r wd librairies}
+
+library(lubridate)
+library(ggplot2)
+library(gridExtra)
+library(patchwork)
+library(dplyr)
+
+library(stringr)
+
+here::here()
+
+opPATH.obj= "./saved_objects/"
+  if (!dir.exists(opPATH.obj)) dir.create(opPATH.obj, recursive = TRUE)
+
+
+opPATH.results= "./results/"
+  if (!dir.exists(opPATH.results)) dir.create(opPATH.results, recursive = TRUE)
+
+
+opPATH.data= "./data/"
+  if (!dir.exists(opPATH.data)) dir.create(opPATH.data, recursive = TRUE)
+
+
+opPATH.fig= "./figures/"
+  if (!dir.exists(opPATH.fig)) dir.create(opPATH.fig, recursive = TRUE)
+```
+
+
+```{r comparison between experiments}
+
+df_mean_weather_HTP_LTP_LYSI <- read.csv(
+  file = paste0(opPATH.data, "mean_weather_data_trials.csv"), sep = ";"
+)
+
+df_mean_weather_HTP_LTP_LYSI$TRIAL = as.factor(df_mean_weather_HTP_LTP_LYSI$TRIAL)
+df_mean_weather_HTP_LTP_LYSI$TRIAL_CROP_YEAR = as.factor(df_mean_weather_HTP_LTP_LYSI$TRIAL_CROP_YEAR)
+
+df_mean_weather_HTP_LTP_LYSI$TRIAL_CROP_YEAR <- factor(
+  df_mean_weather_HTP_LTP_LYSI$TRIAL_CROP_YEAR,
+  levels = c("HTP_SG_2023", "LTP_SG_2024", "LYSIMETER_SG_2024", "LTP_PM_2025", "LYSIMETER_PM_2025")  # change to the  order for legend on plot 
+)
+
+
+# Add YEAR column and rename DURATION_H to DURATION
+df_mean_weather_HTP_LTP_LYSI <- df_mean_weather_HTP_LTP_LYSI %>%
+  mutate(
+    YEAR = str_extract(TRIAL_CROP_YEAR, "\\d{4}"),
+    DURATION = as.factor(DURATION_H)
+  )
+
+
+
+```
+
+
+```{r temp comparison trials}
+
+# Define trial groups
+levels_plot_LYSI <- c("LYSIMETER_SG_2024", "LYSIMETER_PM_2025")
+levels_plot_HTP_LTP <- c("HTP_SG_2023", "LTP_SG_2024", "LTP_PM_2025")
+
+# Subset for LYSIMETER
+df_plot1 <- df_mean_weather_HTP_LTP_LYSI %>%
+  filter(TRIAL_CROP_YEAR %in% levels_plot_LYSI)
+
+plot_T1 <- ggplot(df_plot1, aes(x = INTERVAL, y = MEAN_TEMP)) +
+  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(shape = DURATION, color = YEAR)) +
+  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+  xlab("N interval of measurement (duration of each interval in days)") +
+  ylab("Mean Temperature (°C)") +
+  theme_minimal()
+
+# Subset for HTP / LTP
+df_plot2 <- df_mean_weather_HTP_LTP_LYSI %>%
+  filter(TRIAL_CROP_YEAR %in% levels_plot_HTP_LTP)
+
+plot_T2 <- ggplot(df_plot2, aes(x = INTERVAL, y = MEAN_TEMP)) +
+  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(shape = DURATION, color = YEAR)) +
+  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+  xlab("N interval of measurement (duration of each interval in hours)") +
+  ylab("Mean Temperature (°C)") +
+  theme_minimal()
+
+# Combine plots stacked with shared legend
+combined_plot <- (plot_T1 / plot_T2) + 
+  plot_layout(guides = "collect") & 
+  scale_color_manual(values = c("2023" = "darkgreen", "2024" = "darkblue", "2025" = "darkred")) &
+  theme(legend.position = "right")
+
+# Save as PNG
+ggsave(
+  filename = paste0(opPATH.fig, "mean_temp_weather_plot.png"),  
+  plot = combined_plot,           
+  width = 12,                     
+  height = 8,                     
+  dpi = 300
+)
+```
+
+
+
+```{r RH comparison trials}
+
+# Define trial groups
+levels_plot_LYSI <- c("LYSIMETER_SG_2024", "LYSIMETER_PM_2025")
+levels_plot_HTP_LTP <- c("HTP_SG_2023", "LTP_SG_2024", "LTP_PM_2025")
+
+# Subset for LYSIMETER
+df_plot1 <- df_mean_weather_HTP_LTP_LYSI %>%
+  filter(TRIAL_CROP_YEAR %in% levels_plot_LYSI)
+
+plot_RH1 <- ggplot(df_plot1, aes(x = INTERVAL, y = MEAN_RH)) +
+  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(shape = DURATION, color = YEAR)) +
+  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+  xlab("N interval of measurement (duration of each interval in days)") +
+  ylab("Mean Relative Humidity (%)") +
+  theme_minimal()
+
+# Subset for HTP / LTP
+df_plot2 <- df_mean_weather_HTP_LTP_LYSI %>%
+  filter(TRIAL_CROP_YEAR %in% levels_plot_HTP_LTP)
+
+plot_RH2 <- ggplot(df_plot2, aes(x = INTERVAL, y = MEAN_RH)) +
+  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(shape = DURATION, color = YEAR)) +
+  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+  xlab("N interval of measurement (duration of each interval in hours)") +
+  ylab("Mean Relative Humidity (%)") +
+  theme_minimal()
+
+# Combine plots stacked with shared legend
+combined_plot <- (plot_RH1 / plot_RH2) + 
+  plot_layout(guides = "collect") & 
+  scale_color_manual(values = c("2023" = "darkgreen", "2024" = "darkblue", "2025" = "darkred")) &
+  theme(legend.position = "right")
+
+# Save as PNG
+ggsave(
+  filename = paste0(opPATH.fig, "mean_rh_weather_plot.png"),  
+  plot = combined_plot,           
+  width = 12,                     
+  height = 8,                     
+  dpi = 300
+)
+```
+
+```{r SR}
+
+# Define trial groups
+levels_plot_LYSI <- c("LYSIMETER_SG_2024", "LYSIMETER_PM_2025")
+levels_plot_HTP_LTP <- c("HTP_SG_2023", "LTP_SG_2024", "LTP_PM_2025")
+
+# Subset for LYSIMETER
+df_plot1 <- df_mean_weather_HTP_LTP_LYSI %>%
+  filter(TRIAL_CROP_YEAR %in% levels_plot_LYSI)
+
+plot_SR1 <- ggplot(df_plot1, aes(x = INTERVAL, y = SUM_SR_PENMAN)) +
+  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(shape = DURATION, color = YEAR)) +
+  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+  xlab("N interval of measurement (duration of each interval in days)") +
+  ylab("Sum of solar radiation (MJ/s)") +
+  theme_minimal()
+
+# Subset for HTP / LTP
+df_plot2 <- df_mean_weather_HTP_LTP_LYSI %>%
+  filter(TRIAL_CROP_YEAR %in% levels_plot_HTP_LTP)
+
+plot_SR2 <- ggplot(df_plot2, aes(x = INTERVAL, y = SUM_SR_PENMAN)) +
+  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(shape = DURATION, color = YEAR)) +
+  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+  xlab("N interval of measurement (duration of each interval in hours)") +
+  ylab("Sum of solar radiation (MJ/s)") +
+  theme_minimal()
+
+# Combine plots stacked with shared legend
+combined_plot <- (plot_SR1 / plot_SR2) + 
+  plot_layout(guides = "collect") & 
+  scale_color_manual(values = c("2023" = "darkgreen", "2024" = "darkblue", "2025" = "darkred")) &
+  theme(legend.position = "right")
+
+# Save as PNG
+ggsave(
+  filename = paste0(opPATH.fig, "sum_sr_weather_plot.png"),  
+  plot = combined_plot,           
+  width = 12,                     
+  height = 8,                     
+  dpi = 300
+)
+
+```
