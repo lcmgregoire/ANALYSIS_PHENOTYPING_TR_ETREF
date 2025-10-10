@@ -75,8 +75,6 @@ data$WEEK=as.factor(data$WEEK)
 
 data$LEAF_AREA=as.numeric(data$LEAF_AREA)
 data$ROOT_AREA_TOTAL=as.numeric(data$ROOT_AREA_TOTAL)
-data$ROOT_SHOOT=as.numeric(data$ROOT_SHOOT)
-
 
 nlevels(data$N_GENO)
 nlevels(data$REPETITION)
@@ -120,7 +118,7 @@ ggplot(data, aes(x= data$ROOT_AREA_TOTAL, y=data$ROOT_AREA_TOTAL)) +
 ```
 
 
-```{r sorting outliers}
+```{r }
 ## sup outliers need to be removed (impossible values)
 count_before = nrow(save_before_cleaning)
  data.RmOut <- data 
@@ -346,7 +344,7 @@ data <- as.data.frame(data)
 
 
 hr <- H2cal(data = data,
-            trait = "ROOT_SHOOT",
+            trait = "ROOT_AREA_TOTAL",
             gen.name = "N_GENO",
             rep.n = 4,
             fixed.model = "0 + N_GENO + (1 | REPETITION ) + (1 |  BLOCK_WEEK)",
@@ -397,12 +395,14 @@ write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name, "_", 
 
 ```{r mean per geno}
 
-ROOT_AREA_TOTAL_mean<-as.data.frame(with(data, tapply(data$ROOT_SHOOT, N_GENO, mean)))
-ROOT_AREA_TOTAL_mean = cbind(rownames(ROOT_AREA_TOTAL_mean),  ROOT_AREA_TOTAL_mean$`with(data, tapply(data$ROOT_SHOOT, N_GENO, mean))`)
+ROOT_AREA_TOTAL_mean<-as.data.frame(with(data, tapply(data$ROOT_AREA_TOTAL, N_GENO, mean)))
+
+ROOT_AREA_TOTAL_mean = cbind(rownames(ROOT_AREA_TOTAL_mean),  ROOT_AREA_TOTAL_mean$`with(data, tapply(data$ROOT_AREA_TOTAL, N_GENO, mean))`)
 colnames(ROOT_AREA_TOTAL_mean) = c("N_GENO", "ROOT_AREA")
 ROOT_AREA_TOTAL_mean<-as.data.frame(ROOT_AREA_TOTAL_mean)
-ROOT_AREA_TOTAL_mean$ROOT_AREA = as.numeric(ROOT_AREA_TOTAL_mean$ROOT_AREA)
-ROOT_AREA_TOTAL_mean$N_GENO = as.factor(ROOT_AREA_TOTAL_mean$N_GENO)
+
+
+ROOT_AREA_TOTAL_mean$N_GENO= as.factor(ROOT_AREA_TOTAL_mean$N_GENO)
 
 ROOT_AREA_TOTAL_mean = merge(ROOT_AREA_TOTAL_mean, panel, by= "N_GENO")
 write.table(ROOT_AREA_TOTAL_mean, file = paste0(opPATH.results,trait_name, "_mean_", trial, ".csv"), dec = ".", sep = ";", row.names = FALSE)

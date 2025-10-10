@@ -256,7 +256,7 @@ write.table(x=data, file= paste0(opPATH.results, "values_cleaned_",trait_name,"_
 
 
 ```{r descriptive stat }
-df_desc = as.data.frame(stat.desc(x=data$ROOT_AREA_TOTAL))
+df_desc = as.data.frame(stat.desc(x=data$ROOT_SHOOT))
 
 knitr::kable(df_desc, caption = paste("descriptive statistics", trial))
 ```
