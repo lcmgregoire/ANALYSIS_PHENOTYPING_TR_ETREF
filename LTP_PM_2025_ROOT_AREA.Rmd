@@ -339,73 +339,55 @@ anova(model_RA_reduced, model_RA)
 
 
 
+# heritability : 
+
 ```{r heritability }
-data <- as.data.frame(data)
+# --- Run H2cal analysis ---
+data$REPETITION = as.factor(data$REPETITION)
+data$BLOCK = as.factor(data$BLOCK)
+# 
 
+## -------------------------------
+## Mixed model
+## -------------------------------
 
-hr <- H2cal(data = data,
-            trait = "ROOT_AREA_TOTAL",
-            gen.name = "N_GENO",
-            rep.n = 4,
-            fixed.model = "0 + N_GENO + (1 | REPETITION ) + (1 |  BLOCK_WEEK)",
-            random.model = " 1 + (1 | N_GENO) +(1 | REPETITION ) + (1 |  BLOCK_WEEK) ",
-            plot_diag = TRUE,
-            outliers.rm = TRUE)
-
-
-last_plot <- recordPlot()
-
-df_output = as.data.frame(t(hr$tabsmr))
-
-knitr::kable(df_output, caption = paste0("Summary heritability estimates ", trait_name, " ", trial))
- 
-
+library(agriutilities)
+H2_cullis <- h_cullis(model_RA, genotype = "N_GENO", re_MME = FALSE)
+print(H2_cullis)
+save(H2_cullis, file =  paste0(opPATH.obj,"heritability_cullis_",trait_name,"_", trial, ".RData"))
+write.table(H2_cullis, file = paste0(opPATH.results,"heritability_cullis",trait_name,"_", trial,  ".csv"), dec = ".", sep = ";")
 ```
 
-
-
-
-
-```{r heritability output}
-
-# Save as image (PNG or PDF)
-
-png(filename = here::here(paste0(opPATH.fig, "HERITABILITY_", trait_name, "_", trial, ".png")),
-    width = 6, height = 4, units = "in", res = 300)
-replayPlot(last_plot)
-dev.off()
-```
-
-
-
-# blups :
 
 ```{r blups}
+blup_geno <- ranef(model_RA)$N_GENO ## save blup
 
-blup_result = as.data.frame(hr$blups)
+blup_result <-  blup_geno %>%
+  tibble::rownames_to_column("N_GENO") %>% ## add n_geno id 
+  rename(BLUP = `(Intercept)`)
 
-blup_result <- merge(blup_result, panel,  by = "N_GENO")
   
-save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name, "_", trial, ".RData"))  
+  head(blup_result)
+
+save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name,"_", trial, ".RData"))  
 write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name, "_", trial, ".csv"), dec = ".", sep = ";")
 ```
 
 
 
-
 ```{r mean per geno}
-
 ROOT_AREA_TOTAL_mean<-as.data.frame(with(data, tapply(data$ROOT_AREA_TOTAL, N_GENO, mean)))
-
-ROOT_AREA_TOTAL_mean = cbind(rownames(ROOT_AREA_TOTAL_mean),  ROOT_AREA_TOTAL_mean$`with(data, tapply(data$ROOT_AREA_TOTAL, N_GENO, mean))`)
+  ROOT_AREA_TOTAL_mean = cbind(rownames(ROOT_AREA_TOTAL_mean),  ROOT_AREA_TOTAL_mean$`with(data, tapply(data$ROOT_AREA_TOTAL, N_GENO, mean))`)
 colnames(ROOT_AREA_TOTAL_mean) = c("N_GENO", "ROOT_AREA")
 ROOT_AREA_TOTAL_mean<-as.data.frame(ROOT_AREA_TOTAL_mean)
+ROOT_AREA_TOTAL_mean$ROOT_AREA = as.numeric(ROOT_AREA_TOTAL_mean$ROOT_AREA)
+ROOT_AREA_TOTAL_mean$N_GENO = as.factor(ROOT_AREA_TOTAL_mean$N_GENO)
+nrow(ROOT_AREA_TOTAL_mean) # nb genotypes
+
+## add genotypes names for future association studies
 
 
-ROOT_AREA_TOTAL_mean$N_GENO= as.factor(ROOT_AREA_TOTAL_mean$N_GENO)
+ROOT_AREA_TOTAL_mean <- merge(ROOT_AREA_TOTAL_mean, panel, by = "N_GENO", all.x = TRUE)
 
-ROOT_AREA_TOTAL_mean = merge(ROOT_AREA_TOTAL_mean, panel, by= "N_GENO")
 write.table(ROOT_AREA_TOTAL_mean, file = paste0(opPATH.results,trait_name, "_mean_", trial, ".csv"), dec = ".", sep = ";", row.names = FALSE)
-
 ```
-
