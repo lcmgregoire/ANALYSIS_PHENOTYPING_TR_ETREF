@@ -19,6 +19,7 @@ rm(list = ls())
 # tinytex::install_tinytex()
 
 
+
 library(soiltestcorr)
 library(segmented)
 library("pastecs")
@@ -31,13 +32,10 @@ library(reshape2)
 library(dplyr)     # data management
 library(tidyr)
 library(ggpubr)
-library(pkr)
-library(ggcorrplot)
 library(corrplot)
 library(stats)
 library(agricolae)
 library(lme4)
-library("inti")
 library(here)
 library(RLRsim)
 
@@ -66,6 +64,15 @@ opPATH.fig= "./figures/"
 ## import data 
 data <- read.csv(here::here(opPATH.data, "DATA_TE_LYSI_SG_2024.csv"), dec = ".", sep = ";")
 panel <- read.csv(here::here(opPATH.data, "panel_sorghum.csv"), dec = ".", sep = ";")
+metadata <- read.csv(here::here(opPATH.data, "METADATA_LYSI_SG_2024.csv"), dec = ".", sep = ";")
+
+# merge metadata and TE data
+data <- data %>%
+  left_join(
+    metadata %>% select(SERIAL_ORDER, TRENCH, BLOCK),
+    by = "SERIAL_ORDER"
+  )
+
 
 #variables as factor studied
 data$N_GENO=as.factor(data$N_GENO)
@@ -73,8 +80,15 @@ data$REPETITION=as.factor(data$REPETITION)
 data$BLOCK=as.factor(data$BLOCK)
 data$TRENCH=as.factor(data$TRENCH)
 
+data <- data %>%
+  rename(LEAF_AREA = LA_HARVEST)
+data <- data %>%
+  rename(TOTDW_G = DRY_BIOMASS)
+
+
 data$LEAF_AREA=as.numeric(data$LEAF_AREA)
 data$TOTDW_G=as.numeric(data$TOTDW_G)
+
 data$TE=as.numeric(data$TE)
 
 data$GENO_TRT= paste(data$N_GENO, data$REPETITION, sep = "_")
@@ -336,65 +350,56 @@ knitr::kable(df_desc, caption = paste("descriptive statistics", trial))
 # heritability : 
 
 ```{r heritability }
-# Run heritability calculation
-hr <- H2cal(
+# --- Run H2cal analysis ---
+data$REPETITION = as.factor(data$REPETITION)
+data$BLOCK = as.factor(data$BLOCK)
+# 
+
+## -------------------------------
+## Mixed model
+## -------------------------------
+
+m <- lmer(
+  TE ~ 1 + (1 | N_GENO) + (1 | BLOCK) + (1 | REPETITION), # random factors
   data = data,
-  trait = "TE",
-  gen.name = "N_GENO",
-  rep.n = 4,
-  fixed.model = "0 + N_GENO + (1 | BLOCK) + (1 | REPETITION)",
-  random.model = "1 + (1 | N_GENO) + (1 | BLOCK) + (1 | REPETITION)",
-  plot_diag = TRUE,
+  REML = TRUE
 )
 
-last_plot <- recordPlot()
 
-df_output = as.data.frame(t(hr$tabsmr))
-
-knitr::kable(df_output, caption = paste0("Summary heritability estimates ", trait_name, " ", trial))
-
-
-
+library(agriutilities)
+H2_cullis <- h_cullis(m, genotype = "N_GENO", re_MME = FALSE)
+print(H2_cullis)
+save(H2_cullis, file =  paste0(opPATH.obj,"heritability_cullis_",trait_name,"_", trial, ".RData"))
+write.table(H2_cullis, file = paste0(opPATH.results,"heritability_cullis",trait_name,"_", trial,  ".csv"), dec = ".", sep = ";")
 ```
 
-```{r heritability output}
-# Save as image (PNG or PDF)
-png(filename = here::here(paste0(opPATH.fig, "HERITABILITY_", trait_name, "_", trial, ".png")),
-    width = 6, height = 4, units = "in", res = 300)
-replayPlot(last_plot)
-dev.off()
-```
-
-
-# blups
 
 ```{r blups}
+blup_geno <- ranef(m)$N_GENO ## save blup
 
-blup_result = as.data.frame(hr$blups)
+blup_result <-  blup_geno %>%
+  tibble::rownames_to_column("N_GENO") %>% ## add n_geno id 
+  rename(BLUP = `(Intercept)`)
 
-blup_result <-   merge(blup_result, panel, by = "N_GENO")
+  
+  head(blup_result)
 
-nrow(blup_result)
-save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name, "_", trial, ".RData"))  
+save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name,"_", trial, ".RData"))  
 write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name, "_", trial, ".csv"), dec = ".", sep = ";")
-
-
 ```
+
 # mean per genotype :
 
 
 ```{r mean per geno}
+
 TE_mean<-as.data.frame(with(data, tapply(data$TE, N_GENO, mean)))
-  TE_mean = cbind(rownames(TE_mean),  TE_mean$`with(data, tapply(data$TE, N_GENO, mean))`)
+TE_mean = cbind(rownames(TE_mean), TE_mean[,1])
 colnames(TE_mean) = c("N_GENO", "TE")
-TE_mean<-as.data.frame(TE_mean)
-TE_mean$N_GENO = as.factor(TE_mean$N_GENO)
 
+TE_mean = merge(TE_mean, panel, by= "N_GENO")
+write.table(TE_mean, file = paste0(opPATH.results,trait_name, "_mean_", trial, ".csv"), dec = ".", sep = ";", row.names = FALSE)
 
-
-TE_mean <- merge(TE_mean, panel, by = "N_GENO", all.x = TRUE)
-
-write.table(TE_mean, file = paste0(opPATH.results,trait_name, "_mean_", trial, ".csv"), dec = ".", sep = ";", row.names = F)
 ```
 
 
