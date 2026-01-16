@@ -42,31 +42,52 @@ opPATH.data= "./data/"
 
 opPATH.fig= "./figures/"
   if (!dir.exists(opPATH.fig)) dir.create(opPATH.fig, recursive = TRUE)
+
+
+ETREF_HTP_LTP <- read.csv(here::here(opPATH.data, "ETREF_HTP_LTP.csv"), dec = ".", sep = ";", fileEncoding = "UTF-8" )
+ETREF_LYSI <- read.csv(here::here(opPATH.data, "ETREF_LYSI.csv"), dec = ".", sep = ";",  fileEncoding = "UTF-8" )
+
+
+ETREF_HTP_LTP$START_END = as.factor(ETREF_HTP_LTP$START_END)
+ETREF_HTP_LTP$START_END <- factor(ETREF_HTP_LTP$START_END, levels = c( "8h-12h","12h-15h","15h-17h30","17h30-8h"))
+
+ETREF_HTP_LTP$TRIAL = as.factor(ETREF_HTP_LTP$TRIAL)
+ETREF_LYSI$SPECIES = as.factor(ETREF_LYSI$SPECIES)
+
 ```
+
+
+```{r create one unique dataset}
+cols <- c("TRIAL_CROP_YEAR", "TRIAL", "INTERVAL", "YEAR", "DURATION", "MEAN_TEMP", "MEAN_RH", "MEAN_WS", "MEAN_SR")
+
+df_mean_weather_HTP_LTP_LYSI <- rbind(
+  ETREF_HTP_LTP[ , cols],
+  ETREF_LYSI[ , cols]
+)
+
+df_mean_weather_HTP_LTP_LYSI = na.omit(df_mean_weather_HTP_LTP_LYSI)
+```
+
 
 
 ```{r comparison between experiments}
 
-df_mean_weather_HTP_LTP_LYSI <- read.csv(
-  file = paste0(opPATH.data, "mean_weather_data_trials.csv"), sep = ";"
-)
-
 df_mean_weather_HTP_LTP_LYSI$TRIAL = as.factor(df_mean_weather_HTP_LTP_LYSI$TRIAL)
 df_mean_weather_HTP_LTP_LYSI$TRIAL_CROP_YEAR = as.factor(df_mean_weather_HTP_LTP_LYSI$TRIAL_CROP_YEAR)
+df_mean_weather_HTP_LTP_LYSI$DURATION = as.factor(df_mean_weather_HTP_LTP_LYSI$DURATION)
+df_mean_weather_HTP_LTP_LYSI$YEAR = as.factor(df_mean_weather_HTP_LTP_LYSI$YEAR)
+
+
 
 df_mean_weather_HTP_LTP_LYSI$TRIAL_CROP_YEAR <- factor(
   df_mean_weather_HTP_LTP_LYSI$TRIAL_CROP_YEAR,
-  levels = c("HTP_SG_2023", "LTP_SG_2024", "LYSIMETER_SG_2024", "LTP_PM_2025", "LYSIMETER_PM_2025")  # change to the  order for legend on plot 
+  levels = c("HTP_SORGHUM_2023", "LTP_SORGHUM_2024", "LYSIMETER_SORGHUM_2024", "LTP_PM_2025", "LYSIMETER_PM_2025")  # change to the  order for legend on plot 
 )
 
 
-# Add YEAR column and rename DURATION_H to DURATION
-df_mean_weather_HTP_LTP_LYSI <- df_mean_weather_HTP_LTP_LYSI %>%
-  mutate(
-    YEAR = str_extract(TRIAL_CROP_YEAR, "\\d{4}"),
-    DURATION = as.factor(DURATION_H)
-  )
-
+# Define trial groups
+levels_plot_LYSI <- c("LYSIMETER_SORGHUM_2024", "LYSIMETER_PM_2025")
+levels_plot_HTP_LTP <- c("HTP_SORGHUM_2023", "LTP_SORGHUM_2024", "LTP_PM_2025")
 
 
 ```
@@ -74,18 +95,25 @@ df_mean_weather_HTP_LTP_LYSI <- df_mean_weather_HTP_LTP_LYSI %>%
 
 ```{r temp comparison trials}
 
-# Define trial groups
-levels_plot_LYSI <- c("LYSIMETER_SG_2024", "LYSIMETER_PM_2025")
-levels_plot_HTP_LTP <- c("HTP_SG_2023", "LTP_SG_2024", "LTP_PM_2025")
-
 # Subset for LYSIMETER
 df_plot1 <- df_mean_weather_HTP_LTP_LYSI %>%
   filter(TRIAL_CROP_YEAR %in% levels_plot_LYSI)
 
+df_plot1 <- df_plot1 %>%
+  mutate(YEAR = factor(YEAR))
+
+
 plot_T1 <- ggplot(df_plot1, aes(x = INTERVAL, y = MEAN_TEMP)) +
-  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
-  geom_point(aes(shape = DURATION, color = YEAR)) +
-  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+  geom_line(aes(color = YEAR,
+                linetype = TRIAL_CROP_YEAR,
+                group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(color = YEAR,
+                 shape = DURATION)) +
+  labs(
+    color = "Year",
+    linetype = "Trial / Crop / Year",
+    shape = "Duration (days)"
+  ) +
   xlab("N interval of measurement (duration of each interval in days)") +
   ylab("Mean Temperature (°C)") +
   theme_minimal()
@@ -94,10 +122,20 @@ plot_T1 <- ggplot(df_plot1, aes(x = INTERVAL, y = MEAN_TEMP)) +
 df_plot2 <- df_mean_weather_HTP_LTP_LYSI %>%
   filter(TRIAL_CROP_YEAR %in% levels_plot_HTP_LTP)
 
+df_plot2 <- df_plot2 %>%
+  mutate(YEAR = factor(YEAR))
+
 plot_T2 <- ggplot(df_plot2, aes(x = INTERVAL, y = MEAN_TEMP)) +
-  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
-  geom_point(aes(shape = DURATION, color = YEAR)) +
-  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+  geom_line(aes(color = YEAR,
+                linetype = TRIAL_CROP_YEAR,
+                group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(color = YEAR,
+                 shape = DURATION)) +
+  labs(
+    color = "Year",
+    linetype = "Trial / Crop / Year",
+    shape = "Duration (hours)"
+  ) +
   xlab("N interval of measurement (duration of each interval in hours)") +
   ylab("Mean Temperature (°C)") +
   theme_minimal()
@@ -122,18 +160,21 @@ ggsave(
 
 ```{r RH comparison trials}
 
-# Define trial groups
-levels_plot_LYSI <- c("LYSIMETER_SG_2024", "LYSIMETER_PM_2025")
-levels_plot_HTP_LTP <- c("HTP_SG_2023", "LTP_SG_2024", "LTP_PM_2025")
-
 # Subset for LYSIMETER
 df_plot1 <- df_mean_weather_HTP_LTP_LYSI %>%
   filter(TRIAL_CROP_YEAR %in% levels_plot_LYSI)
 
-plot_RH1 <- ggplot(df_plot1, aes(x = INTERVAL, y = MEAN_RH)) +
-  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
-  geom_point(aes(shape = DURATION, color = YEAR)) +
-  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+plot_RH1 <-ggplot(df_plot1, aes(x = INTERVAL, y = MEAN_RH)) +
+  geom_line(aes(color = YEAR,
+                linetype = TRIAL_CROP_YEAR,
+                group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(color = YEAR,
+                 shape = DURATION)) +
+  labs(
+    color = "Year",
+    linetype = "Trial / Crop / Year",
+    shape = "Duration (days)"
+  ) +
   xlab("N interval of measurement (duration of each interval in days)") +
   ylab("Mean Relative Humidity (%)") +
   theme_minimal()
@@ -143,9 +184,16 @@ df_plot2 <- df_mean_weather_HTP_LTP_LYSI %>%
   filter(TRIAL_CROP_YEAR %in% levels_plot_HTP_LTP)
 
 plot_RH2 <- ggplot(df_plot2, aes(x = INTERVAL, y = MEAN_RH)) +
-  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
-  geom_point(aes(shape = DURATION, color = YEAR)) +
-  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+  geom_line(aes(color = YEAR,
+                linetype = TRIAL_CROP_YEAR,
+                group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(color = YEAR,
+                 shape = DURATION)) +
+  labs(
+    color = "Year",
+    linetype = "Trial / Crop / Year",
+    shape = "Duration (hours)"
+  ) +
   xlab("N interval of measurement (duration of each interval in hours)") +
   ylab("Mean Relative Humidity (%)") +
   theme_minimal()
@@ -168,32 +216,47 @@ ggsave(
 
 ```{r SR}
 
-# Define trial groups
-levels_plot_LYSI <- c("LYSIMETER_SG_2024", "LYSIMETER_PM_2025")
-levels_plot_HTP_LTP <- c("HTP_SG_2023", "LTP_SG_2024", "LTP_PM_2025")
 
 # Subset for LYSIMETER
 df_plot1 <- df_mean_weather_HTP_LTP_LYSI %>%
   filter(TRIAL_CROP_YEAR %in% levels_plot_LYSI)
 
-plot_SR1 <- ggplot(df_plot1, aes(x = INTERVAL, y = SUM_SR_PENMAN)) +
-  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
-  geom_point(aes(shape = DURATION, color = YEAR)) +
-  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+
+plot_SR1 <- ggplot(df_plot1, aes(x = INTERVAL, y = MEAN_SR)) +
+  geom_line(aes(color = YEAR,
+                linetype = TRIAL_CROP_YEAR,
+                group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(color = YEAR,
+                 shape = DURATION)) +
+  labs(
+    color = "Year",
+    linetype = "Trial / Crop / Year",
+    shape = "Duration (days)"
+  ) +
   xlab("N interval of measurement (duration of each interval in days)") +
-  ylab("Sum of solar radiation (MJ/s)") +
+  ylab("Mean of solar radiation (W/m²)") +
   theme_minimal()
 
 # Subset for HTP / LTP
 df_plot2 <- df_mean_weather_HTP_LTP_LYSI %>%
   filter(TRIAL_CROP_YEAR %in% levels_plot_HTP_LTP)
 
-plot_SR2 <- ggplot(df_plot2, aes(x = INTERVAL, y = SUM_SR_PENMAN)) +
-  geom_line(aes(color = YEAR, linetype = TRIAL_CROP_YEAR, group = TRIAL_CROP_YEAR)) +
-  geom_point(aes(shape = DURATION, color = YEAR)) +
-  labs(color = "Year", linetype = "Trial / Crop / Year", shape = "Duration") +
+
+
+
+plot_SR2 <-ggplot(df_plot2, aes(x = INTERVAL, y = MEAN_SR)) +
+  geom_line(aes(color = YEAR,
+                linetype = TRIAL_CROP_YEAR,
+                group = TRIAL_CROP_YEAR)) +
+  geom_point(aes(color = YEAR,
+                 shape = DURATION)) +
+  labs(
+    color = "Year",
+    linetype = "Trial / Crop / Year",
+    shape = "Duration (hours)"
+  ) +
   xlab("N interval of measurement (duration of each interval in hours)") +
-  ylab("Sum of solar radiation (MJ/s)") +
+  ylab("Mean of solar radiation (W/m²)") +
   theme_minimal()
 
 # Combine plots stacked with shared legend
@@ -204,7 +267,7 @@ combined_plot <- (plot_SR1 / plot_SR2) +
 
 # Save as PNG
 ggsave(
-  filename = paste0(opPATH.fig, "sum_sr_weather_plot.png"),  
+  filename = paste0(opPATH.fig, "mean_sr_weather_plot.png"),  
   plot = combined_plot,           
   width = 12,                     
   height = 8,                     

@@ -55,11 +55,11 @@ ETREF_LYSI$DURATION_DAY = as.factor(ETREF_LYSI$DURATION_DAY)
 # LTP_HTP = ETREF_all_trials 
 # LTP_HTP = na.omit(LTP_HTP$ET_MM_DAY)
 p1 <- 
-  ggplot(data = ETREF_HTP_LTP, aes(x = TRIAL, y = ET_MM_HOUR, color = START_END)) +
+  ggplot(data = ETREF_HTP_LTP, aes(x = TRIAL, y = ETREF_MM_HOUR, color = START_END)) +
   geom_point(aes(group = START_END)) +
   labs(x = "Trial", y = "ETref (mm/h)", color = "Interval (hour)") +
     scale_y_continuous(name = "ETref (mm/h)",
-     breaks = seq(0, 3.5, 0.5))+
+     breaks = seq(0, 3.5, 0.25))+
    
     theme(axis.text.x = element_text(angle = 45, hjust = 1))+
 
@@ -67,14 +67,14 @@ p1 <-
 
 
 p2 <-
-  ggplot(data = ETREF_LYSI, aes(x = SPECIES, y = ETREF_LYSI$ET_MM_DAY, colour = DURATION_DAY )) +
+  ggplot(data = ETREF_LYSI, aes(x = SPECIES, y = ETREF_LYSI$ETREF_MM_DAY, colour = DURATION_DAY )) +
   geom_point(aes(group = DURATION_DAY)) +
   labs(x = "Crop", y = "ETref (mm/day)", color = "Interval (day)") +
-  geom_point(aes(y = ET_MM_DAY), size = 3) +
+  geom_point(aes(y = ETREF_MM_DAY), size = 3) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
     ggtitle("ETref lysimeter (mm/day)") +
   scale_y_continuous(name = "ETref (mm/day)",
-     breaks = seq(0, 17, 1))
+     breaks = seq(0, 17, 0.5))
 
   
   
@@ -91,4 +91,59 @@ ggsave(
 )
 
 ```
+
+```{r}
+
+tab_summary_LTP_HTP = aggregate(ETREF_MM_HOUR ~ TRIAL, data = ETREF_HTP_LTP,
+          FUN = function(x) c(min = min(x, na.rm = TRUE),
+                              mean = mean(x, na.rm = TRUE),
+                              max = max(x, na.rm = TRUE)))
+
+
+print(tab_summary_LTP_HTP)
+
+```
+
+```{r}
+tab_summary_LTP_HTP_HOUR <- aggregate(
+  ETREF_MM_HOUR ~ TRIAL + START_END,
+  data = ETREF_HTP_LTP,
+  FUN = function(x) c(
+    min  = min(x, na.rm = TRUE),
+    mean = mean(x, na.rm = TRUE),
+    max  = max(x, na.rm = TRUE)
+  )
+)
+
+
+```
+
+
+```{r}
+
+tab_summary_LYSI = aggregate(ETREF_MM_DAY ~ SPECIES, data = ETREF_LYSI,
+          FUN = function(x) c(min = min(x, na.rm = TRUE),
+                              mean = mean(x, na.rm = TRUE),
+                              max = max(x, na.rm = TRUE)))
+
+
+print(tab_summary_LYSI)
+
+```
+
+```{r}
+
+tab_summary_LYSI_INTERVAL = aggregate(ETREF_MM_DAY ~ SPECIES+ DURATION_DAY, data = ETREF_LYSI,
+          FUN = function(x) c(min = min(x, na.rm = TRUE),
+                              mean = mean(x, na.rm = TRUE),
+                              max = max(x, na.rm = TRUE)))
+
+
+print(tab_summary_LYSI_INTERVAL)
+```
+
+
+
+
+
 
