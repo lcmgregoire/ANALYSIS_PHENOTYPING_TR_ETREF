@@ -51,14 +51,13 @@ opPATH.fig= "./figures/"
 
 
 ```{r import data }
-data <- read.csv(here::here(opPATH.data, "DATA_TR_ETREF_LTP_SG_2024.csv"), dec = ".", sep = ";")
+data <- read.csv(here::here(opPATH.data, "DATA_ROOT_TRAITS_LTP_SG_2024.csv"), dec = ".", sep = ";")
 panel <- read.csv(here::here(opPATH.data, "panel_sorghum.csv"), dec = ".", sep = ";")
 
 
 
 data$N_GENO=as.factor(data$N_GENO)
 data$REPETITION=as.factor(data$REPETITION) 
-data$PERIOD=as.factor(data$PERIOD) 
 data$BLOCK=as.factor(data$BLOCK)
 data$BLOCK_WEEK=as.factor(data$BLOCK_WEEK) 
 data$WEEK=as.factor(data$WEEK)
@@ -68,8 +67,6 @@ data$GENO_TRT= paste(data$N_GENO, data$REPETITION, sep = "_")
 data$GENO_TRT=as.factor(data$GENO_TRT)
 
 
-data$TR=as.numeric(data$TR)
-data$ETREF=as.numeric(data$ETREF)
 data$ROOT_AREA_TOTAL=as.numeric(data$ROOT_AREA_TOTAL)
 
 

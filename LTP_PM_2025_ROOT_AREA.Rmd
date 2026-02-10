@@ -115,6 +115,8 @@ ggplot(data, aes(x= data$WEEK, y=data$ROOT_AREA_TOTAL)) +
 
 ggplot(data, aes(x= data$ROOT_AREA_TOTAL, y=data$ROOT_AREA_TOTAL)) + 
   geom_boxplot()
+
+max(data$ROOT_AREA_TOTAL)
 ```
 
 
@@ -160,7 +162,7 @@ ggplot(data.RmOut, aes(x= data.RmOut$ROOT_AREA_TOTAL, y=data.RmOut$ROOT_AREA_TOT
   geom_boxplot()
 
 
-
+max(data.RmOut$ROOT_AREA_TOTAL)
 
 ```
 
