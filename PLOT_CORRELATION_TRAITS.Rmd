@@ -51,7 +51,7 @@ opPATH.fig= "./figures/"
 # SORGHUM
 # HTP 2023
 ## SLOPE TR- ETREF
-SLOPE_mean_HTP_SG_2023 <- read.csv(here::here(opPATH.results, "SLOPE_mean_TR_ETREF_HTP_SG_2023.csv"), dec = ".", sep = ";")
+SLOPE_mean_HTP_SG_2023 <- read.csv(here::here(opPATH.results, "SLOPE_mean__TR-G-H-PLANT_ETREF_HTP_SG_2023.csv"), dec = ".", sep = ";")
 names(SLOPE_mean_HTP_SG_2023)[names(SLOPE_mean_HTP_SG_2023) == "SLOPE"] <- "Slope HTP" # to differentiate between the slopes of  trials
 
 # LYSI 2024

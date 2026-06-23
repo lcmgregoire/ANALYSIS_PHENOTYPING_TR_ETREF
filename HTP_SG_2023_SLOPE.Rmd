@@ -336,7 +336,7 @@ irrg.dts <- c("2023-09-30","2023-10-03","2023-10-06", "2023-10-10", "2023-10-13"
 
 # load transpiration rate data on 15 minute interval
 # inputfile_TR<-read.csv(paste0(opPATH.data,"TR.mat_updated.csv"), sep = ";", header = TRUE)  #draw raw TR smooth normalized by leaf area  
-inputfile_TR_G_INTERVAL<-read.csv(paste0(opPATH.data,"ETr_non_normalized_HTP_SG_2023.csv"), sep = ";", header = TRUE)  #draw raw TR smooth normalized by leaf area  
+inputfile_TR_G_INTERVAL<-read.csv(paste0(opPATH.data,"ETr_non_normalized_HTP_SG_2023.csv"), sep = ";", header = TRUE)  #draw raw TR smooth normalized by leaf area  ## units mm/15min
 
 inputfile_TR_G_INTERVAL= inputfile_TR_G_INTERVAL[,-1] ## removed the unit column
 TS = colnames(inputfile_TR_G_INTERVAL)
@@ -568,7 +568,7 @@ data_TR <- data_TR %>%
     cols = -c("N" ,"INTERVAL", "Date",  "START_DAY", "END_DAY", "START_HOUR","END_HOUR","START_DAS", "END_DAS", "DURATION_H","CUMUL_WATER_MM_INTERVAL", "ETREF_MM_H","MEAN_VPD", "KC"         
 ),  # colonnes à garder
     names_to = "unit",
-    values_to = "TR_G_H"
+    values_to = "TR_MM_H"
   )
 
 save(data_TR, file = paste0(opPATH.obj, "data_TR_",trial,".RData"))
@@ -666,6 +666,7 @@ data <- data %>%
 ```
 
 
+
 ```{r ETREF KC }
 
 data$ETREF = as.numeric(data$ETREF)
@@ -691,6 +692,8 @@ nlevels(transp$BLOCK)
 nlevels(transp$ROW)
 nlevels(transp$COLUMN)
 save_before_cleaning = transp
+
+transp=  transp[, !duplicated(colnames(transp))]
 
 ```
 
@@ -718,19 +721,19 @@ ggplot(transp, aes(x= transp$COLUMN, y=transp$TR_RATE)) +
 
 
 
-ggplot(transp, aes(x= transp$BLOCK, y=transp$TR_G_H)) + 
+ggplot(transp, aes(x= transp$BLOCK, y=transp$TR_MM_H)) + 
   geom_boxplot() 
 
 
-ggplot(transp, aes(x= transp$REPETITION, y=transp$TR_G_H)) + 
+ggplot(transp, aes(x= transp$REPETITION, y=transp$TR_MM_H)) + 
   geom_boxplot()
 
 
-ggplot(transp, aes(x= transp$ROW, y=transp$TR_G_H)) + 
+ggplot(transp, aes(x= transp$ROW, y=transp$TR_MM_H)) + 
   geom_boxplot()
 
 
-ggplot(transp, aes(x= transp$COLUMN, y=transp$TR_G_H)) + 
+ggplot(transp, aes(x= transp$COLUMN, y=transp$TR_MM_H)) + 
   geom_boxplot()
 
 
@@ -784,19 +787,19 @@ ggplot(data.RmOut, aes(x= data.RmOut$COLUMN, y=data.RmOut$TR_RATE)) +
   geom_boxplot()
 
 
-ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$TR_G_H)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$TR_MM_H)) + 
   geom_boxplot() 
 
 
-ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$TR_G_H)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$TR_MM_H)) + 
   geom_boxplot()
 
 
-ggplot(data.RmOut, aes(x= data.RmOut$ROW, y=data.RmOut$TR_G_H)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$ROW, y=data.RmOut$TR_MM_H)) + 
   geom_boxplot()
 
 
-ggplot(data.RmOut, aes(x= data.RmOut$COLUMN, y=data.RmOut$TR_G_H)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$COLUMN, y=data.RmOut$TR_MM_H)) + 
   geom_boxplot()
 
 
@@ -828,20 +831,20 @@ print(aov)
 
 
 
-model<-lm(TR_G_H~REPETITION, data = data.RmOut)
+model<-lm(TR_MM_H~REPETITION, data = data.RmOut)
 aov<-Anova(model)
 print(aov)
 
 
-model<-lm(TR_G_H~BLOCK, data = data.RmOut)
+model<-lm(TR_MM_H~BLOCK, data = data.RmOut)
 aov<-Anova(model)
 print(aov)
 
-model<-lm(TR_G_H~ROW, data = data.RmOut)
+model<-lm(TR_MM_H~ROW, data = data.RmOut)
 aov<-Anova(model)
 print(aov)
 
-model<-lm(TR_G_H~COLUMN, data = data.RmOut)
+model<-lm(TR_MM_H~COLUMN, data = data.RmOut)
 aov<-Anova(model)
 print(aov)
 
@@ -854,6 +857,8 @@ print(aov)
 # save after cleaning
 data = data.RmOut
 save(data, file = paste0(opPATH.obj, "cleaned_data_TR_ETREF_",trial,".RData"))
+load(file = paste0(opPATH.obj, "cleaned_data_TR_ETREF_",trial,".RData"))
+
 ```
 
 
@@ -909,6 +914,8 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -969,6 +976,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -1025,6 +1034,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -1084,6 +1095,8 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
   
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -1152,7 +1165,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -1234,7 +1248,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -1312,7 +1327,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -1395,7 +1411,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -1746,8 +1763,9 @@ for (i in levels(data$N_GENO)) {
       labs(
         title = paste0("Segmented model - Genotype ", i, " - ", geno_name),
         x = "VPD (kPa)",
-        y = "Tr rate (g·h⁻¹·cm⁻²)"
-      ) +
+        y = "TR (mm·h⁻¹·cm⁻²)"
+
+              ) +
       theme_bw(base_size = 14) +
       coord_cartesian(xlim = x_limits)
 
@@ -1828,6 +1846,8 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
   
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -1889,6 +1909,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -1947,6 +1969,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -2006,6 +2030,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -2074,7 +2100,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -2155,7 +2182,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -2235,7 +2263,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -2320,7 +2349,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -2608,7 +2638,7 @@ scale_color_manual(values = rep_colors) +
 labs(
   title = paste0("Linear model (intercept = 0) - Genotype ", i, " - ", geno_name),
   x = "ETREF (mm.h⁻¹)",
-  y = "Tr rate (g·h⁻¹·cm⁻²)",
+        y = "TR (mm·h⁻¹·cm⁻²)",
   color = "Repetition"
 ) +
 theme_bw(base_size = 14) +
@@ -2717,8 +2747,9 @@ if (nrow(all_bp_data) > 0) {
               hjust = 1, vjust = 1, size = 3.5, show.legend = FALSE) +
     scale_color_manual(values = rep_colors) +
     labs(title = paste0("Segmented model - Genotype ", i," - ", geno_name),
-      x = "ETREF (mm.h⁻¹)",
-    y = "Tr rate (g·h⁻¹·cm⁻²)",      color = "Repetition") +
+      x = "ETref (mm.h⁻¹)",
+        y = "TR (mm·h⁻¹·cm⁻²)",
+    color = "Repetition") +
     theme_bw(base_size = 14)
 } else {
 #  fallback si tous les modèles échouent
@@ -2795,6 +2826,8 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj","AIC",  "
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -2854,6 +2887,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -2908,6 +2943,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -2965,6 +3002,8 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -3032,7 +3071,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -3113,7 +3153,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -3191,7 +3232,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -3275,7 +3317,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -3563,8 +3606,8 @@ geom_text(
 scale_color_manual(values = rep_colors) +
 labs(
   title = paste0("Linear model (intercept = 0) - Genotype ", i, " - ", geno_name),
-  x = "ETREF_KC (mm.day⁻¹.kPa)",
-  y = "Tr rate (g·h⁻¹·cm⁻²)",
+  x = "ETref x Kc (mm.day⁻¹)",
+        y = "TR (mm·h⁻¹·cm⁻²)",
   color = "Repetition"
 ) +
 theme_bw(base_size = 14) +
@@ -3740,7 +3783,7 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -3751,6 +3794,8 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -3799,7 +3844,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 2) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -3810,6 +3855,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -3854,7 +3901,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 2) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -3865,6 +3912,10 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+  
+       geno_name = as.character(geno_name)
+
+                    
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -3911,7 +3962,7 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
 
    if (nrow(subset_geno_trt) > 2) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -3922,6 +3973,8 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -3979,7 +4032,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -3991,7 +4044,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -4060,7 +4114,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -4072,6 +4126,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
+      geno_name  <- as.character(geno_name)
+
   
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
@@ -4138,7 +4194,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -4150,7 +4206,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -4222,7 +4279,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -4234,7 +4291,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -4445,7 +4503,7 @@ for (i in levels(data$N_GENO)) {
   # Keep only repetitions with ≥ 3 complete cases
   valid_reps <- subset %>%
     group_by(REPETITION) %>%
-    filter(sum(!is.na(TR_G_H) & !is.na(MEAN_VPD)) >= 3) %>%
+    filter(sum(!is.na(TR_MM_H) & !is.na(MEAN_VPD)) >= 3) %>%
     pull(REPETITION) %>%
     unique()
 
@@ -4463,7 +4521,7 @@ for (i in levels(data$N_GENO)) {
 label_lin <- subset %>%
 group_by(REPETITION) %>%
 reframe({
-  mod <- lm(TR_G_H ~ 0 + MEAN_VPD, data = cur_data())
+  mod <- lm(TR_MM_H ~ 0 + MEAN_VPD, data = cur_data())
   slope <- as.numeric(coef(mod)[["MEAN_VPD"]])
   r2_val <- summary(mod)$r.squared
 # 
@@ -4482,8 +4540,8 @@ arrange(REPETITION) %>%
 mutate(
   # Position de base en haut à gauche
   x_base = 0,
-  y_top = max(subset$TR_G_H) * 1.05,
-  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_G_H)),
+  y_top = max(subset$TR_MM_H) * 1.05,
+  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_MM_H)),
   # répartir verticalement du haut vers le bas
   y_label = y_top - (row_number() - 1) * (y_top - y_bottom) / (n() - 1),
   # petit décalage horizontal pour chaque répétition
@@ -4492,7 +4550,7 @@ mutate(
 
 
 # ### Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
-p1 <- ggplot(subset, aes(x = MEAN_VPD, y = TR_G_H, color = REPETITION)) +
+p1 <- ggplot(subset, aes(x = MEAN_VPD, y = TR_MM_H, color = REPETITION)) +
 geom_point() +
 # 
 # régression locale
@@ -4522,7 +4580,7 @@ scale_color_manual(values = rep_colors) +
 labs(
   title = paste0("Linear model (intercept = 0) - Genotype ", i, " - ", geno_name),
   x = "VPD (kPa)",
-  y = "Tr (g·h⁻¹)",
+        y = "Tr (mm·h⁻¹)",
   color = "Repetition"
 ) +
 theme_bw(base_size = 14) +
@@ -4552,7 +4610,7 @@ coord_cartesian(xlim = c(0, NA))
 
  
   bp_model <- tryCatch({
-    lm_base <- lm(TR_G_H ~ MEAN_VPD, data = subset_rep)
+    lm_base <- lm(TR_MM_H ~ MEAN_VPD, data = subset_rep)
     segmented(lm_base, seg.Z = ~ MEAN_VPD,
               psi = list(MEAN_VPD = median(subset_rep$MEAN_VPD, na.rm = TRUE)))
   }, error = function(e) NULL)
@@ -4564,7 +4622,7 @@ coord_cartesian(xlim = c(0, NA))
       data.frame(MEAN_VPD = seq(min(subset_rep$MEAN_VPD),
                                 max(subset_rep$MEAN_VPD),
                                 length.out = 100)) %>%
-        mutate(TR_G_H = predict(bp_model, newdata = .),
+        mutate(TR_MM_H = predict(bp_model, newdata = .),
                REPETITION = rep)
     }, error = function(e) NULL)
 
@@ -4597,8 +4655,8 @@ annotations$REPETITION <- factor(annotations$REPETITION, levels = levels(subset$
 
 n_rep <- nrow(annotations)
 if (n_rep > 0) {
- y_base <- max(subset$TR_G_H) * 1.05  
-y_spacing <- 0.05 * (max(subset$TR_G_H) - min(subset$TR_G_H))  
+ y_base <- max(subset$TR_MM_H) * 1.05  
+y_spacing <- 0.05 * (max(subset$TR_MM_H) - min(subset$TR_MM_H))  
 
 
 annotations <- annotations %>%
@@ -4612,7 +4670,7 @@ annotations <- annotations %>%
     REPETITION = subset$REPETITION[1],
     label = "Segmented models failed",
     x = max(subset$MEAN_VPD) * 1.05,
-    y = max(subset$TR_G_H),
+    y = max(subset$TR_MM_H),
     stringsAsFactors = FALSE
   )
 }
@@ -4621,10 +4679,10 @@ annotations <- annotations %>%
 # # Création du graphique
 # # ---------------------------
 if (nrow(all_bp_data) > 0) {
-  p2 <- ggplot(subset, aes(x = MEAN_VPD, y = TR_G_H, color = REPETITION)) +
+  p2 <- ggplot(subset, aes(x = MEAN_VPD, y = TR_MM_H, color = REPETITION)) +
     geom_point() +
     geom_line(data = all_bp_data,
-              aes(x = MEAN_VPD, y = TR_G_H, group = REPETITION, color = REPETITION),
+              aes(x = MEAN_VPD, y = TR_MM_H, group = REPETITION, color = REPETITION),
               size = 1) +
     geom_text(data = annotations,
               aes(x = x, y = y, label = label, color = REPETITION),
@@ -4632,7 +4690,7 @@ if (nrow(all_bp_data) > 0) {
     scale_color_manual(values = rep_colors) +
     labs(title = paste0("Segmented model - Genotype ", i," - ", geno_name),
       x = "VPD (kPa)",
-  y = "Tr (g·h⁻¹)",
+        y = "Tr (mm·h⁻¹)",
     color = "Repetition") +
     theme_bw(base_size = 14)
 } else {
@@ -4701,7 +4759,7 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -4712,6 +4770,8 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -4760,7 +4820,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -4771,6 +4831,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -4814,7 +4876,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -4825,6 +4887,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -4871,7 +4935,7 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
 
    if (nrow(subset_geno_trt) > 0) { 
  x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -4882,6 +4946,8 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -4912,6 +4978,13 @@ coef_intercept_geno=na.omit(coef_intercept_geno)
 ####" Breakpoint model
 model_name = "breakpoint_TR_ETREF"
 
+data.RmOut$N_GENO = as.factor(data.RmOut$N_GENO)
+data.RmOut$REPETITION <- as.factor(data.RmOut$REPETITION)
+
+data.RmOut <- data.RmOut %>%
+  mutate(GENO_NAME = sub(".*_", "", data.RmOut$Variety_ID))
+data.RmOut$GENO_NAME = as.factor(data.RmOut$GENO_NAME)
+
 ############ REP 1
 
 outputfile<-paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep1_", trial, ".txt" )
@@ -4937,7 +5010,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -4949,7 +5022,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -5018,7 +5092,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -5030,7 +5104,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -5096,7 +5171,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -5108,7 +5183,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -5180,7 +5256,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -5192,7 +5268,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -5332,7 +5409,7 @@ header = paste(c(com_col, "GENO_TRT"))
 
 ```
 
-```{ }
+```{r}
 best_model_AIC <- read.table(outputfile, sep = ",", header = TRUE, fill = TRUE, stringsAsFactors = FALSE)
 print(paste("best model AIC TR_ETREF linear for (%) ",sum(best_model_AIC$model == "linear_TR_ETREF")/nrow(best_model_AIC)*100))
 print(paste("best model AIC TR_ETREF breakpoint for (%) ",sum(best_model_AIC$model == "breakpoint_TR_ETREF")/nrow(best_model_AIC)*100))
@@ -5405,7 +5482,7 @@ for (i in levels(data$N_GENO)) {
   # Keep only repetitions with ≥ 3 complete cases
   valid_reps <- subset %>%
     group_by(REPETITION) %>%
-    filter(sum(!is.na(TR_G_H) & !is.na(ETREF)) >= 3) %>%
+    filter(sum(!is.na(TR_MM_H) & !is.na(ETREF)) >= 3) %>%
     pull(REPETITION) %>%
     unique()
 
@@ -5423,7 +5500,7 @@ for (i in levels(data$N_GENO)) {
 label_lin <- subset %>%
 group_by(REPETITION) %>%
 reframe({
-  mod <- lm(TR_G_H ~ 0 + ETREF, data = cur_data())
+  mod <- lm(TR_MM_H ~ 0 + ETREF, data = cur_data())
   slope <- as.numeric(coef(mod)[["ETREF"]])
   r2_val <- summary(mod)$r.squared
 # 
@@ -5442,8 +5519,8 @@ arrange(REPETITION) %>%
 mutate(
   # Position de base en haut à gauche
   x_base = 0,
-  y_top = max(subset$TR_G_H) * 1.05,
-  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_G_H)),
+  y_top = max(subset$TR_MM_H) * 1.05,
+  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_MM_H)),
   # répartir verticalement du haut vers le bas
   y_label = y_top - (row_number() - 1) * (y_top - y_bottom) / (n() - 1),
   # petit décalage horizontal pour chaque répétition
@@ -5452,7 +5529,7 @@ mutate(
 
 
 # ### Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
-p1 <- ggplot(subset, aes(x = ETREF, y = TR_G_H, color = REPETITION)) +
+p1 <- ggplot(subset, aes(x = ETREF, y = TR_MM_H, color = REPETITION)) +
 geom_point() +
 # 
 # régression locale
@@ -5481,8 +5558,8 @@ geom_text(
 scale_color_manual(values = rep_colors) +
 labs(
   title = paste0("Linear model (intercept = 0) - Genotype ", i, " - ", geno_name),
-  x = "ETREF (mm.h⁻¹)",
-  y = "Tr (g·h⁻¹)",
+  x = "ETref (mm.h⁻¹)",
+        y = "Tr (mm·h⁻¹)",
   color = "Repetition"
 ) +
 theme_bw(base_size = 14) +
@@ -5512,7 +5589,7 @@ coord_cartesian(xlim = c(0, NA))
 
  
   bp_model <- tryCatch({
-    lm_base <- lm(TR_G_H ~ ETREF, data = subset_rep)
+    lm_base <- lm(TR_MM_H ~ ETREF, data = subset_rep)
     segmented(lm_base, seg.Z = ~ ETREF,
               psi = list(ETREF = median(subset_rep$ETREF, na.rm = TRUE)))
   }, error = function(e) NULL)
@@ -5524,7 +5601,7 @@ coord_cartesian(xlim = c(0, NA))
       data.frame(ETREF = seq(min(subset_rep$ETREF),
                                 max(subset_rep$ETREF),
                                 length.out = 100)) %>%
-        mutate(TR_G_H = predict(bp_model, newdata = .),
+        mutate(TR_MM_H = predict(bp_model, newdata = .),
                REPETITION = rep)
     }, error = function(e) NULL)
 
@@ -5557,8 +5634,8 @@ annotations$REPETITION <- factor(annotations$REPETITION, levels = levels(subset$
 
 n_rep <- nrow(annotations)
 if (n_rep > 0) {
- y_base <- max(subset$TR_G_H) * 1.05  
-y_spacing <- 0.05 * (max(subset$TR_G_H) - min(subset$TR_G_H))  
+ y_base <- max(subset$TR_MM_H) * 1.05  
+y_spacing <- 0.05 * (max(subset$TR_MM_H) - min(subset$TR_MM_H))  
 
 
 annotations <- annotations %>%
@@ -5572,7 +5649,7 @@ annotations <- annotations %>%
     REPETITION = subset$REPETITION[1],
     label = "Segmented models failed",
     x = max(subset$ETREF) * 1.05,
-    y = max(subset$TR_G_H),
+    y = max(subset$TR_MM_H),
     stringsAsFactors = FALSE
   )
 }
@@ -5581,10 +5658,10 @@ annotations <- annotations %>%
 # # Création du graphique
 # # ---------------------------
 if (nrow(all_bp_data) > 0) {
-  p2 <- ggplot(subset, aes(x = ETREF, y = TR_G_H, color = REPETITION)) +
+  p2 <- ggplot(subset, aes(x = ETREF, y = TR_MM_H, color = REPETITION)) +
     geom_point() +
     geom_line(data = all_bp_data,
-              aes(x = ETREF, y = TR_G_H, group = REPETITION, color = REPETITION),
+              aes(x = ETREF, y = TR_MM_H, group = REPETITION, color = REPETITION),
               size = 1) +
     geom_text(data = annotations,
               aes(x = x, y = y, label = label, color = REPETITION),
@@ -5592,7 +5669,7 @@ if (nrow(all_bp_data) > 0) {
     scale_color_manual(values = rep_colors) +
     labs(title = paste0("Segmented model - Genotype ", i," - ", geno_name),
       x = "ETREF (mm.h⁻¹)",
-  y = "Tr (g·h⁻¹)",
+        y = "Tr (mm·h⁻¹)",
     color = "Repetition") +
     theme_bw(base_size = 14)
 } else {
@@ -5660,7 +5737,7 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -5671,6 +5748,8 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -5719,7 +5798,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -5730,6 +5809,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -5773,7 +5854,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -5784,6 +5865,8 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -5830,7 +5913,7 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
 
    if (nrow(subset_geno_trt) > 0) { 
  x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -5841,6 +5924,8 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
   RMSE <- sqrt(mean((y - y_hat)^2))
   
   geno_name= unique(subset_geno_trt$GENO_NAME)
+       geno_name = as.character(geno_name)
+
   rep =  unique(subset_geno_trt$REPETITION)
   
   write.table(t(c(i,
@@ -5871,6 +5956,12 @@ coef_intercept_geno=na.omit(coef_intercept_geno)
 ####" Breakpoint model
 model_name = "breakpoint_TR_ETREF_KC"
 
+data.RmOut$N_GENO = as.factor(data.RmOut$N_GENO)
+data.RmOut$REPETITION <- as.factor(data.RmOut$REPETITION)
+
+data.RmOut <- data.RmOut %>%
+  mutate(GENO_NAME = sub(".*_", "", data.RmOut$Variety_ID))
+data.RmOut$GENO_NAME = as.factor(data.RmOut$GENO_NAME)
 ############ REP 1
 
 outputfile<-paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep1_", trial, ".txt" )
@@ -5896,7 +5987,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -5908,7 +5999,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -5976,7 +6068,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -5988,7 +6080,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -6053,7 +6146,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -6065,7 +6158,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -6137,7 +6231,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_H
+  y <- subset_geno_trt$TR_MM_H
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -6149,7 +6243,8 @@ if (!inherits(mod, "try-error")) {
   df_summary <- summary(mod)
   rep        <- unique(subset_geno_trt$REPETITION)
   geno_name  <- unique(subset_geno_trt$GENO_NAME)
-  
+      geno_name  <- as.character(geno_name)
+
   # slopes
   slope_x  <- coef(mod)["x"]                       # before breakpoint
   slope_x2 <- coef(mod)["x"] + coef(mod)["U1.x"]   # after breakpoint
@@ -6289,7 +6384,7 @@ header = paste(c(com_col, "GENO_TRT"))
 
 ```
 
-```{ }
+```{r}
 best_model_AIC <- read.table(outputfile, sep = ",", header = TRUE, fill = TRUE, stringsAsFactors = FALSE)
 unique(best_model_AIC$model)
 print(paste("best model AIC TR_ETREF_KC linear for (%) ",sum(best_model_AIC$model == "linear_TR_ETREF_KC")/nrow(best_model_AIC)*100))
@@ -6337,7 +6432,7 @@ print(paste("best model R2 TR_ETREF_KC breakpoint for (%) ",sum(best_model_R2$mo
 ```
 #### plot model 
 
-```{r plot models TR- ETREF_KC}
+```{r plot models TR- ETREF_KC, eval=FALSE}
 
 
 rep_colors <- c(
@@ -6363,7 +6458,7 @@ for (i in levels(data$N_GENO)) {
   # Keep only repetitions with ≥ 3 complete cases
   valid_reps <- subset %>%
     group_by(REPETITION) %>%
-    filter(sum(!is.na(TR_G_H) & !is.na(ETREF_KC)) >= 3) %>%
+    filter(sum(!is.na(TR_MM_H) & !is.na(ETREF_KC)) >= 3) %>%
     pull(REPETITION) %>%
     unique()
 
@@ -6381,7 +6476,7 @@ for (i in levels(data$N_GENO)) {
 label_lin <- subset %>%
 group_by(REPETITION) %>%
 reframe({
-  mod <- lm(TR_G_H ~ 0 + ETREF_KC, data = cur_data())
+  mod <- lm(TR_MM_H ~ 0 + ETREF_KC, data = cur_data())
   slope <- as.numeric(coef(mod)[["ETREF_KC"]])
   r2_val <- summary(mod)$r.squared
 # 
@@ -6400,8 +6495,8 @@ arrange(REPETITION) %>%
 mutate(
   # Position de base en haut à gauche
   x_base = 0,
-  y_top = max(subset$TR_G_H) * 1.05,
-  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_G_H)),
+  y_top = max(subset$TR_MM_H) * 1.05,
+  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_MM_H)),
   # répartir verticalement du haut vers le bas
   y_label = y_top - (row_number() - 1) * (y_top - y_bottom) / (n() - 1),
   # petit décalage horizontal pour chaque répétition
@@ -6410,7 +6505,7 @@ mutate(
 
 
 # ### Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
-p1 <- ggplot(subset, aes(x = ETREF_KC, y = TR_G_H, color = REPETITION)) +
+p1 <- ggplot(subset, aes(x = ETREF_KC, y = TR_MM_H, color = REPETITION)) +
 geom_point() +
 # 
 # régression locale
@@ -6470,7 +6565,7 @@ coord_cartesian(xlim = c(0, NA))
 
  
   bp_model <- tryCatch({
-    lm_base <- lm(TR_G_H ~ ETREF_KC, data = subset_rep)
+    lm_base <- lm(TR_MM_H ~ ETREF_KC, data = subset_rep)
     segmented(lm_base, seg.Z = ~ ETREF_KC,
               psi = list(ETREF_KC = median(subset_rep$ETREF_KC, na.rm = TRUE)))
   }, error = function(e) NULL)
@@ -6482,7 +6577,7 @@ coord_cartesian(xlim = c(0, NA))
       data.frame(ETREF_KC = seq(min(subset_rep$ETREF_KC),
                                 max(subset_rep$ETREF_KC),
                                 length.out = 100)) %>%
-        mutate(TR_G_H = predict(bp_model, newdata = .),
+        mutate(TR_MM_H = predict(bp_model, newdata = .),
                REPETITION = rep)
     }, error = function(e) NULL)
 
@@ -6515,8 +6610,8 @@ annotations$REPETITION <- factor(annotations$REPETITION, levels = levels(subset$
 
 n_rep <- nrow(annotations)
 if (n_rep > 0) {
- y_base <- max(subset$TR_G_H) * 1.05  
-y_spacing <- 0.05 * (max(subset$TR_G_H) - min(subset$TR_G_H))  
+ y_base <- max(subset$TR_MM_H) * 1.05  
+y_spacing <- 0.05 * (max(subset$TR_MM_H) - min(subset$TR_MM_H))  
 
 
 annotations <- annotations %>%
@@ -6530,7 +6625,7 @@ annotations <- annotations %>%
     REPETITION = subset$REPETITION[1],
     label = "Segmented models failed",
     x = max(subset$ETREF_KC) * 1.05,
-    y = max(subset$TR_G_H),
+    y = max(subset$TR_MM_H),
     stringsAsFactors = FALSE
   )
 }
@@ -6539,18 +6634,19 @@ annotations <- annotations %>%
 # # Création du graphique
 # # ---------------------------
 if (nrow(all_bp_data) > 0) {
-  p2 <- ggplot(subset, aes(x = ETREF_KC, y = TR_G_H, color = REPETITION)) +
+  p2 <- ggplot(subset, aes(x = ETREF_KC, y = TR_MM_H, color = REPETITION)) +
     geom_point() +
     geom_line(data = all_bp_data,
-              aes(x = ETREF_KC, y = TR_G_H, group = REPETITION, color = REPETITION),
+              aes(x = ETREF_KC, y = TR_MM_H, group = REPETITION, color = REPETITION),
               size = 1) +
     geom_text(data = annotations,
               aes(x = x, y = y, label = label, color = REPETITION),
               hjust = 1, vjust = 1, size = 3.5, show.legend = FALSE) +
     scale_color_manual(values = rep_colors) +
     labs(title = paste0("Segmented model - Genotype ", i," - ", geno_name),
-      x = "ETREF_KC (mm.day⁻¹.kPa)",
-    y = "Tr (g·h⁻¹)",      color = "Repetition") +
+      x = "ETref x Kc (mm.day⁻¹)",
+        y = "Tr (mm·h⁻¹)",
+    color = "Repetition") +
     theme_bw(base_size = 14)
 } else {
 #  fallback si tous les modèles échouent
@@ -6800,7 +6896,9 @@ print(sum_up_XY_regression)
 ```{r}
 sum_up_XY_TRrate <- final_results %>%
   filter(Yvar == "TR") %>%
-  group_by(Xvar, regression) %>%
+    filter(regression == "linear") %>%
+
+  group_by(Xvar) %>%
   summarise(
     min_R2  = min(R2, na.rm = TRUE),
     max_R2  = max(R2, na.rm = TRUE),
@@ -6904,13 +7002,19 @@ ggplot(coef_intercept_metad, aes(x= coef_intercept_metad$ROW, y=coef_intercept_m
 ```
 
 ```{r outleirs sorting }
-ount_before = nrow(coef_intercept_metad)
+count_before = nrow(coef_intercept_metad)
 
     out <- boxplot(coef_intercept_metad$SLOPE, plot = FALSE)$out # values to remove
     tf <- which(coef_intercept_metad$SLOPE %in% out) # position in the list
     coef_intercept_metad$SLOPE[tf] <- NA
     
+library(dplyr)
 
+coef_intercept_metad <- coef_intercept_metad %>%
+  group_by(ROW) %>%
+  filter(!SLOPE %in% boxplot.stats(SLOPE)$out) %>%
+  ungroup()
+    
 coef_intercept_metad = na.omit(coef_intercept_metad)
     
 count_after = nrow(coef_intercept_metad)
@@ -7034,7 +7138,7 @@ print(df_desc)
 
 
 ```{r anova among geno }
-model_slope <- lmer(SLOPE ~ 1 + (1 | N_GENO) + (1 | BLOCK)+ (1 | REPETITION) , data = coef_intercept_metad)
+model_slope <- lmer(SLOPE ~ 1 + (1 | N_GENO) + (1 | ROW), data = coef_intercept_metad)
 print(model_slope)
 
 ```
@@ -7042,7 +7146,7 @@ print(model_slope)
 
 
 ```{r }
-model_slope_reduced <- lmer(SLOPE ~ 1  + (1 | BLOCK)+ (1 | REPETITION), data = coef_intercept_metad)
+model_slope_reduced <- lmer(SLOPE ~ 1  + (1 | ROW), data = coef_intercept_metad)
 print(model_slope_reduced)
 
 ```
@@ -7078,20 +7182,24 @@ write.table(H2_cullis, file = paste0(opPATH.results,"heritability_cullis",trait_
 
 ```{r blups}
 blup_geno <- ranef(model_slope)$N_GENO ## save blup
+panel = read.csv(paste0(opPATH.data,"panel_sorghum_ICRISAT.csv"), sep = ";", header = TRUE) ## careful N_GENO CERAAS different from ICRISAT exp
 
 blup_result <-  blup_geno %>%
   tibble::rownames_to_column("N_GENO") %>% ## add n_geno id 
   rename(BLUP = `(Intercept)`)
+panel <- panel %>%
+  mutate(N_GENO = as.character(N_GENO))
+
+blup_result <- left_join(blup_result, panel, by = "N_GENO")
 
   
-  head(blup_result)
 
 save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name,"_", Yvar, "_", Xvar, "_", trial, ".RData"))  
-write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name,"_", Yvar, "_", Xvar, "_", trial, ".csv"), dec = ".", sep = ";")
+write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name,"_", Yvar, "_", Xvar, "_", trial, ".csv"), dec = ".", sep = ";", row.names = FALSE)
 ```
 
 
-# mean per genotype :
+###  mean per genotype :
 
 
 ```{r mean per geno}
@@ -7099,11 +7207,8 @@ write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name,"_", Y
 SLOPE_mean<-as.data.frame(with(coef_intercept_metad, tapply(coef_intercept_metad$SLOPE, N_GENO, mean)))
 SLOPE_mean = cbind(rownames(SLOPE_mean), SLOPE_mean[,1])
 colnames(SLOPE_mean) = c("N_GENO", "SLOPE")
-panel = read.csv(paste0(opPATH.data,"panel_sorghum.csv"), sep = ";", header = TRUE)
 
 SLOPE_mean = merge(SLOPE_mean, panel, by= "N_GENO")
 write.table(SLOPE_mean, file = paste0(opPATH.results,trait_name, "_mean_","_", Yvar, "_", Xvar, "_", trial, ".csv"), dec = ".", sep = ";", row.names = FALSE)
 
 ```
-
-

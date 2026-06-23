@@ -1,0 +1,837 @@
+---
+title: "Plot TRrate - ETREF "
+author: "Laura Gregoire"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+Goal : represent one genotype across various platform, plot TR- etref in each context
+```{r prepare lysi data}
+rm(list = ls())
+library(ggrepel)
+library(dplyr)
+library(segmented)
+ i= "37" #N_GENO CERAAS IS11119
+
+
+opPATH.obj= "./saved_objects/"
+  if (!dir.exists(opPATH.obj)) dir.create(opPATH.obj, recursive = TRUE)
+
+
+# Lysimeter
+trial = "LYSI_SG_2024"
+formula_name = "linear" 
+Xvar = "ETREF_KC"
+YVvar= "TR"  
+
+load( file = paste0(opPATH.obj, "cleaned_data_TR_ETREF_",trial,".RData"))
+
+
+
+```
+
+#### plot  lysi
+
+```{r plot models TR- ETREF_KC }
+
+# 
+# path = paste0("./figures/", trial, "/")
+# 
+# opPATH.plot_TR= path
+#   if (!dir.exists(opPATH.plot_TR)) dir.create(opPATH.plot_TR, recursive = TRUE)
+
+data$N_GENO = as.factor(data$N_GENO)
+data$REPETITION = as.factor(data$REPETITION)
+
+
+# for (i in levels(data$N_GENO)) {
+
+subset <- data %>% filter(N_GENO == i)
+x_min <- 0
+  x_max <- max(subset$ETREF_KC, na.rm = TRUE) * 1.1  ## to have the same x axis 
+  x_breaks <- pretty(c(x_min, x_max), n = 5)
+  geno_name <- subset$GENO_NAME[1]
+
+  # Keep only repetitions with ≥ 3 complete cases
+  valid_reps <- subset %>%
+    group_by(REPETITION) %>%
+    filter(sum(!is.na(TR_MM_DAY) & !is.na(ETREF_KC)) >= 3) %>%
+    pull(REPETITION) %>%
+    unique()
+
+  subset <- subset %>% filter(REPETITION %in% valid_reps)
+  subset$REPETITION <- factor(subset$REPETITION, levels = c("1","2","3","4"))
+
+
+  ### -----------------------
+  ### 1. Linear model (intercept = 0)
+  ### -----------------------
+  
+    if ((length(valid_reps) > 0) == TRUE) {
+
+        # prep labels
+      
+      
+      label_lin <- subset %>%
+  group_by(REPETITION) %>%
+  reframe({
+    mod <- lm(TR_MM_DAY ~ 0 + ETREF_KC, data = cur_data())
+    slope <- as.numeric(coef(mod)[["ETREF_KC"]])
+    r2_val <- summary(mod)$r.squared
+    eq <- paste0("y = ", format(slope, scientific = TRUE, digits = 3), " * x")
+
+    tibble(REPETITION = cur_group()$REPETITION[[1]],
+           slope = slope,
+           intercept = 0,
+           eq = eq,
+           r2 = round(r2_val, 2))
+  }) %>%
+  arrange(as.numeric(REPETITION))
+
+y_top <- max(subset$TR_MM_DAY) * 1.05
+y_bottom <- y_top - 0.2 * (y_top - min(subset$TR_MM_DAY))
+
+label_lin <- label_lin %>%
+  mutate(
+    x_label = min(subset$ETREF_KC) * 0.02,
+    y_label = seq(from = y_top, to = y_bottom, length.out = n()),
+    eq_r2   = paste0("Rep ", REPETITION, ": ", eq, "  R² = ", r2)
+  )
+
+
+# -----------------------
+# Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
+# -----------------------
+plot_lin_lysi <- ggplot(subset, aes(x = ETREF_KC, y = TR_MM_DAY, color = REPETITION)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "lm", formula = y ~ 0 + x, se = FALSE, linewidth = 1) +
+  geom_abline(
+    data = label_lin,
+    aes(slope = slope, intercept = intercept, color = REPETITION),
+    linetype = "dashed",
+    linewidth = 0.8,
+    inherit.aes = FALSE
+  ) +
+  geom_text(
+    data = label_lin,
+    aes(x = x_label, y = y_label, label = eq_r2, color = REPETITION),
+    hjust = 0,        # aligné à gauche
+    vjust = 1,        # aligné vers le haut
+    size = 3, ## agranir le txt
+    lineheight = 1.1,
+    show.legend = FALSE,
+    inherit.aes = FALSE
+  ) +
+  scale_x_continuous(
+    limits = c(x_min, x_max),
+    breaks = x_breaks
+  ) +
+#  scale_color_manual(values = rep_colors) +
+  labs(
+  x = expression(ET[ref] %*% K[c] ~ (mm %.% day^{-1})),
+  y = "Tr (mm·day⁻¹)",
+    color = "Repetition"
+  ) +
+  theme_bw(base_size = 9)
+
+    }
+  
+  
+  
+  # ### -----------------------
+#     ### 2. Segmented (breakpoint) model
+#  # ---------------------------
+ all_bp_data <- data.frame()
+ annotations <- data.frame(REPETITION = factor(),
+                         label = character(),
+                           x = numeric(),
+                           y = numeric(),
+                           stringsAsFactors = FALSE)
+ 
+ # ---------------------------
+# # Boucle sur chaque répétition
+# # ---------------------------
+
+  for (rep in unique(subset$REPETITION)) {
+  subset_rep <- subset %>% filter(REPETITION == rep)
+  subset_rep$ETREF_KC <- as.numeric(subset_rep$ETREF_KC)
+
+ 
+  bp_model <- tryCatch({
+    lm_base <- lm(TR_MM_DAY ~ ETREF_KC, data = subset_rep)
+    segmented(lm_base, seg.Z = ~ ETREF_KC,
+              psi = list(ETREF_KC = median(subset_rep$ETREF_KC, na.rm = TRUE)))
+  }, error = function(e) NULL)
+  
+  
+  if (!is.null(bp_model)) {
+#     # Générer les prédictions
+    bp_data <- tryCatch({
+      data.frame(ETREF_KC = seq(min(subset_rep$ETREF_KC),
+                                max(subset_rep$ETREF_KC),
+                                length.out = 100)) %>%
+        mutate(TR_MM_DAY = predict(bp_model, newdata = .),
+               REPETITION = rep)
+    }, error = function(e) NULL)
+
+    if (!is.null(bp_data)) all_bp_data <- rbind(all_bp_data, bp_data)
+
+  #  Récupérer les pentes et breakpoint
+    slope_vals <- tryCatch(slope(bp_model)$ETREF_KC, error = function(e) NULL)
+    if (!is.null(slope_vals) && length(slope_vals) >= 2) {
+      slope1 <- format(slope_vals[1], scientific = TRUE, digits = 3)
+      slope2 <- format(slope_vals[2], scientific = TRUE, digits = 3)
+      psi <- format(bp_model$psi[2], scientific = FALSE, digits = 3)
+      r2_bp <- round(summary(bp_model)$r.squared, 2)
+
+     # Ajouter annotation
+      annotations <- rbind(annotations, data.frame(
+        REPETITION = rep,
+        label = paste0("S1=", slope1, ", S2=", slope2,
+                       ", Psi=", psi, ", R²=", r2_bp),
+        stringsAsFactors = FALSE
+      ))
+    }
+  }
+}
+     
+# ---------------------------
+# # Harmoniser les facteurs et espacer verticalement
+# # ---------------------------
+annotations$REPETITION <- factor(
+  annotations$REPETITION,
+  levels = c("1","2","3","4")
+)
+ 
+annotations <- annotations %>%
+  mutate(
+    x = 0,
+    y = case_when(
+      REPETITION == "1" ~ max(subset$TR_MM_DAY)*1.02,
+      REPETITION == "2" ~ max(subset$TR_MM_DAY)*0.97,
+      REPETITION == "3" ~ max(subset$TR_MM_DAY)*0.92,
+      REPETITION == "4" ~ max(subset$TR_MM_DAY)*0.87
+    )
+  )
+
+
+# 
+# n_rep <- nrow(annotations)
+# annotations <- annotations %>%
+#   mutate(
+#     x = x_max*1.03,
+#     y = seq(max(subset$TR_MM_DAY, na.rm=TRUE),
+#             max(subset$TR_MM_DAY, na.rm=TRUE)*0.7,
+#             length.out=n())
+#   )
+
+
+
+
+
+plot_segm_lysi <- ggplot(subset, aes(x = ETREF_KC, y = TR_MM_DAY, color = REPETITION)) +
+  geom_point(size = 1) +
+
+  geom_line(
+    data = all_bp_data,
+    aes(x = ETREF_KC, y = TR_MM_DAY, group = REPETITION, color = REPETITION),
+    size = 1
+  ) +
+geom_text(
+  data = annotations,
+  aes(x = x, y = y, label = label, color = REPETITION),
+  hjust = 0,
+  size = 3,
+  show.legend = FALSE
+) +
+
+#  scale_color_manual(values = rep_colors) +
+  scale_x_continuous(breaks = x_breaks) +
+
+  coord_cartesian(
+    xlim = c(x_min, x_max),
+    clip = "off"
+  ) +
+
+  labs(
+  x = expression(ET[ref] %*% K[c] ~ (mm %.% day^{-1})),
+    y = "Tr (mm·day⁻¹)",
+    color = "Repetition"
+  ) +
+  theme_bw(base_size = 9) +
+  theme(
+    plot.margin = margin(5.5, 60, 5.5, 5.5)   # space for annotations
+  )
+
+  
+
+
+```
+
+
+
+#### plot LTP
+
+```{r prepare LTP data}
+# LTP
+i="37"
+trial = "LTP_SG_2024"
+formula_name = "linear" 
+Xvar = "ETREF"
+YVvar= "TRrate"  
+
+
+
+opPATH.obj= "./saved_objects/"
+  if (!dir.exists(opPATH.obj)) dir.create(opPATH.obj, recursive = TRUE)
+
+
+load( file = paste0(opPATH.obj, "cleaned_data_TR_ETREF_",trial,".RData"))
+
+```
+
+
+```{r plot  TRrate- ETREF}
+
+
+data$N_GENO = as.factor(data$N_GENO)
+
+
+# for (i in levels(data$N_GENO)) {
+
+  subset <- data %>% filter(N_GENO == i)
+  x_min <- 0
+  x_max <- max(subset$ETREF, na.rm = TRUE) * 1.1  ## to have the same x axis 
+  geno_name <- subset$GENO_NAME[1]
+  
+  
+
+  # Keep only repetitions with ≥ 3 complete cases
+  valid_reps <- subset %>%
+    group_by(REPETITION) %>%
+    filter(sum(!is.na(TR_RATE) & !is.na(ETREF)) >= 3) %>%
+    pull(REPETITION) %>%
+    unique()
+
+  subset <- subset %>% filter(REPETITION %in% valid_reps)
+  subset$REPETITION <- factor(subset$REPETITION, levels = c("1","2","3","4"))
+
+
+  
+  
+  ### -----------------------
+  ### 1. Linear model (intercept = 0)
+  ### -----------------------
+  
+    if ((length(valid_reps) > 0) == TRUE) {
+
+        # prep labels
+label_lin <- subset %>%
+  group_by(REPETITION) %>%
+  reframe({
+    mod <- lm(TR_RATE ~ 0 + ETREF, data = cur_data())
+    slope <- as.numeric(coef(mod)[["ETREF"]])
+    r2_val <- summary(mod)$r.squared
+
+    eq <- paste0("y = ", format(slope, scientific = TRUE, digits = 3), " * x")
+    
+     
+
+    tibble(
+      REPETITION = cur_group()$REPETITION[[1]],
+      slope = slope,
+      intercept = 0,
+      eq = eq,
+      r2 = round(r2_val, 2)
+    )
+  }) %>%
+  ungroup() %>%
+  arrange(REPETITION)
+
+# Nombre de répétitions
+n_rep <- nrow(label_lin)
+
+# Limites verticales pour espacement
+y_top <- max(subset$TR_RATE) * 1.05
+y_bottom <- y_top - 0.2 * (y_top - min(subset$TR_RATE))
+
+# Ajouter positions x et y pour les labels + texte combiné
+label_lin <- label_lin %>%
+  mutate(
+    x_label = min(subset$ETREF) * 0.02,              # aligné à gauche
+    y_label = seq(from = y_top, to = y_bottom, length.out = n()),
+    eq_r2   = paste0("Rep ", REPETITION, ": ", eq, "  R² = ", r2)
+  )
+
+
+
+
+# ### Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
+plot_lin_ltp <- ggplot(subset, aes(x = ETREF, y = TR_RATE, color = REPETITION)) +
+geom_point(size= 1) +
+# régression locale
+geom_smooth(method = "lm", formula = y ~ 0 + x, se = FALSE, linewidth = 1) +
+# 
+ geom_abline(data = label_lin,
+              aes(slope = slope, intercept = intercept, color = REPETITION),
+              linetype = "dashed", linewidth = 0.8, inherit.aes = FALSE) +
+  geom_text(data = label_lin,
+            aes(x = x_label, y = y_label, label = eq_r2, color = REPETITION),
+            hjust = 0, vjust = 1, size = 3, show.legend = FALSE,
+            inherit.aes = FALSE) +
+  scale_x_continuous(
+    limits = c(x_min, x_max)) +
+
+# 
+#scale_color_manual(values = rep_colors) +
+labs(
+    x = expression(ET[ref] ~ (mm %.% h^{-1})),
+  y = "TR (g·h⁻¹·cm⁻²)",
+  color = "Repetition"
+) +
+theme_bw(base_size = 9) +
+# 
+# axe x commence à 0
+coord_cartesian(xlim = c(0, NA))
+}
+
+
+  # ### -----------------------
+#     ### 2. Segmented (breakpoint) model
+#  # ---------------------------
+ all_bp_data <- data.frame()
+ annotations <- data.frame(REPETITION = factor(),
+                         label = character(),
+                           x = numeric(),
+                           y = numeric(),
+                           stringsAsFactors = FALSE)
+ 
+ 
+ 
+ 
+ # ---------------------------
+# # Boucle sur chaque répétition
+# # ---------------------------
+
+  for (rep in unique(subset$REPETITION)) {
+  subset_rep <- subset %>% filter(REPETITION == rep)
+  subset_rep$ETREF <- as.numeric(subset_rep$ETREF)
+
+ 
+  bp_model <- tryCatch({
+    lm_base <- lm(TR_RATE ~ ETREF, data = subset_rep)
+    segmented(lm_base, seg.Z = ~ ETREF,
+              psi = list(ETREF = median(subset_rep$ETREF, na.rm = TRUE)))
+  }, error = function(e) NULL)
+  
+  
+  if (!is.null(bp_model)) {
+#     # Générer les prédictions
+    bp_data <- tryCatch({
+      data.frame(ETREF = seq(min(subset_rep$ETREF),
+                                max(subset_rep$ETREF),
+                                length.out = 100)) %>%
+        mutate(TR_RATE = predict(bp_model, newdata = .),
+               REPETITION = rep)
+    }, error = function(e) NULL)
+
+    if (!is.null(bp_data)) all_bp_data <- rbind(all_bp_data, bp_data)
+
+  #  Récupérer les pentes et breakpoint
+    slope_vals <- tryCatch(slope(bp_model)$ETREF, error = function(e) NULL)
+    if (!is.null(slope_vals) && length(slope_vals) >= 2) {
+      slope1 <- format(slope_vals[1], scientific = TRUE, digits = 3)
+      slope2 <- format(slope_vals[2], scientific = TRUE, digits = 3)
+      psi <- format(bp_model$psi[2], scientific = FALSE, digits = 2)
+      r2_bp <- round(summary(bp_model)$r.squared, 2)
+
+     # Ajouter annotation
+      annotations <- rbind(annotations, data.frame(
+        REPETITION = rep,
+        label = paste0("S1=", slope1, ", S2=", slope2,
+                       ", Psi=", psi, ", R²=", r2_bp),
+        stringsAsFactors = FALSE
+      ))
+    }
+  }
+}
+     
+# ---------------------------
+# # Harmoniser les facteurs et espacer verticalement
+# # ---------------------------
+ 
+ annotations$REPETITION <- factor(
+  annotations$REPETITION,
+  levels = c("1","2","3","4")
+)
+ 
+annotations <- annotations %>%
+  mutate(
+    x = -0.001,
+    y = case_when(
+      REPETITION == "1" ~ max(subset$TR_RATE)*1.02,
+      REPETITION == "2" ~ max(subset$TR_RATE)*0.97,
+      REPETITION == "3" ~ max(subset$TR_RATE)*0.92,
+      REPETITION == "4" ~ max(subset$TR_RATE)*0.87
+    )
+  )
+
+
+plot_segm_ltp<- ggplot(subset, aes(x = ETREF, y = TR_RATE, color = REPETITION)) +
+  geom_point(size = 1) +
+  geom_line(
+    data = all_bp_data,
+    aes(x = ETREF, y = TR_RATE, group = REPETITION, color = REPETITION),
+    size = 1
+  ) +
+  geom_text(
+  data = annotations,
+  aes(x = x, y = y, label = label, color = REPETITION),
+  hjust = 0,
+  size = 3,
+  show.legend = FALSE
+) +
+
+  # geom_text_repel(
+  #   data = annotations,
+  #   inherit.aes = FALSE,
+  #   aes(x = x, y = y, label = label, color = REPETITION),
+  #   direction = "y",
+  #   hjust = 0,
+  #       size = 3,
+  #   box.padding = 0.2,
+  #   max.overlaps = Inf,
+  #   segment.color = NA,
+  #   show.legend = FALSE
+  # ) +
+
+#  scale_color_manual(values = rep_colors) +
+  # scale_x_continuous(breaks = x_breaks) +
+
+  coord_cartesian(
+    xlim = c(x_min, x_max),
+    clip = "off"
+  ) +
+
+  labs(
+    x = expression(ET[ref] ~ (mm %.% h^{-1})),
+  y = "TR (g·h⁻¹·cm⁻²)",
+    color = "Repetition"
+  ) +
+  theme_bw(base_size = 9) +
+  theme(
+    plot.margin = margin(5.5, 60, 5.5, 5.5)   # space for annotations
+  )
+
+```
+
+
+
+
+#### plot HTP
+
+
+```{r}
+# HTP
+
+## N_GENO ICRISAT different from CERAAS for a same GENO_NAME
+ i= "89" #N_GENO ICRISAT IS11119
+trial= "HTP_SG_2023"
+formula_name = "linear" 
+Xvar = "ETREF"
+YVvar= "TR_MM_H"  
+
+load( file = paste0(opPATH.obj, "cleaned_data_TR_ETREF_",trial,".RData"))
+
+
+```
+
+```{r plot  TR- ETREF }
+
+  
+data$N_GENO = as.factor(data$N_GENO)
+
+# for (i in levels(data$N_GENO)) {
+
+  subset <- data %>% filter(N_GENO == i)
+  x_min <- 0
+  x_max <- max(subset$ETREF, na.rm = TRUE) * 1.1  ## to have the same x axis 
+  x_breaks <- pretty(c(x_min, x_max), n = 5)
+  geno_name <- subset$GENO_NAME[1]
+
+  # Keep only repetitions with ≥ 3 complete cases
+  valid_reps <- subset %>%
+    group_by(REPETITION) %>%
+    filter(sum(!is.na(TR_MM_H) & !is.na(ETREF)) >= 3) %>%
+    pull(REPETITION) %>%
+    unique()
+
+  subset <- subset %>% filter(REPETITION %in% valid_reps)
+  subset$REPETITION <- factor(subset$REPETITION, levels = c("1","2","3","4"))
+
+
+  ### -----------------------
+  ### 1. Linear model (intercept = 0)
+  ### -----------------------
+  
+
+        # prep labels
+label_lin <- subset %>%
+  group_by(REPETITION) %>%
+  reframe({
+    mod <- lm(TR_MM_H ~ 0 + ETREF, data = cur_data())
+    slope <- as.numeric(coef(mod)[["ETREF"]])
+    r2_val <- summary(mod)$r.squared
+
+    eq <- paste0("y = ", format(slope, scientific = FALSE, digits = 3), " * x")
+    
+    tibble(
+      REPETITION = cur_group()$REPETITION[[1]],
+      slope = slope,
+      intercept = 0,
+      eq = eq,
+      r2 = round(r2_val, 2)
+    )
+  }) %>%
+  ungroup() %>%
+  arrange(REPETITION)
+
+# Nombre de répétitions
+n_rep <- nrow(label_lin)
+
+# Limites verticales pour espacement
+y_top <- max(subset$TR_MM_H) * 1.05
+y_bottom <- y_top - 0.2 * (y_top - min(subset$TR_MM_H))
+
+# Ajouter positions x et y pour les labels + texte combiné
+label_lin <- label_lin %>%
+  mutate(
+    x_label = min(subset$ETREF_KC) * 0.02,
+    y_label = seq(from = y_top, to = y_bottom, length.out = n()),
+    eq_r2   = paste0("Rep ", REPETITION, ": ", eq, "  R² = ", r2)
+  )
+
+  ### -----------------------
+  ### 1. Linear model (intercept = 0)
+  ### -----------------------
+
+######
+# ### Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
+plot_lin_htp <- ggplot(subset, aes(x = ETREF, y = TR_MM_H, color = REPETITION)) +
+geom_point(size= 1) +
+# 
+# régression locale
+geom_smooth(method = "lm", formula = y ~ 0 + x, se = FALSE, linewidth = 1) +
+# 
+  geom_abline(data = label_lin,
+              aes(slope = slope, intercept = intercept, color = REPETITION),
+              linetype = "dashed", linewidth = 0.8, inherit.aes = FALSE) +
+  geom_text(data = label_lin,
+            aes(x = x_label, y = y_label, label = eq_r2, color = REPETITION),
+            hjust = 0, vjust = 1, size = 3, show.legend = FALSE,
+            inherit.aes = FALSE) +
+# 
+# scale_color_manual(values = rep_colors) +
+labs(
+      x = expression(ET[ref] ~ (mm %.% h^{-1})),
+
+  y = "Tr (mm·h⁻¹)",
+  color = "Repetition"
+) +
+theme_bw(base_size = 9) +
+# 
+# axe x commence à 0
+coord_cartesian(xlim = c(0, NA))
+
+
+  # ### -----------------------
+#     ### 2. Segmented (breakpoint) model
+#  # ---------------------------
+ all_bp_data <- data.frame()
+ annotations <- data.frame(REPETITION = factor(),
+                         label = character(),
+                           x = numeric(),
+                           y = numeric(),
+                           stringsAsFactors = FALSE)
+ 
+ 
+ 
+ 
+ # ---------------------------
+# # Boucle sur chaque répétition
+# # ---------------------------
+
+  for (rep in unique(subset$REPETITION)) {
+  subset_rep <- subset %>% filter(REPETITION == rep)
+  subset_rep$ETREF <- as.numeric(subset_rep$ETREF)
+
+ 
+  bp_model <- tryCatch({
+    lm_base <- lm(TR_MM_H ~ ETREF, data = subset_rep)
+    segmented(lm_base, seg.Z = ~ ETREF,
+              psi = list(ETREF = median(subset_rep$ETREF, na.rm = TRUE)))
+  }, error = function(e) NULL)
+  
+  
+  if (!is.null(bp_model)) {
+#     # Générer les prédictions
+    bp_data <- tryCatch({
+      data.frame(ETREF = seq(min(subset_rep$ETREF),
+                                max(subset_rep$ETREF),
+                                length.out = 100)) %>%
+        mutate(TR_MM_H = predict(bp_model, newdata = .),
+               REPETITION = rep)
+    }, error = function(e) NULL)
+
+    if (!is.null(bp_data)) all_bp_data <- rbind(all_bp_data, bp_data)
+
+  #  Récupérer les pentes et breakpoint
+    slope_vals <- tryCatch(slope(bp_model)$ETREF, error = function(e) NULL)
+    if (!is.null(slope_vals) && length(slope_vals) >= 2) {
+      slope1 <- format(slope_vals[1], scientific = FALSE, digits = 2)
+      slope2 <- format(slope_vals[2], scientific = FALSE, digits = 2)
+      psi <- format(bp_model$psi[2], scientific = FALSE, digits = 2)
+      r2_bp <- round(summary(bp_model)$r.squared, 2)
+
+     # Ajouter annotation
+      annotations <- rbind(annotations, data.frame(
+        REPETITION = rep,
+        label = paste0("S1=", slope1, ", S2=", slope2,
+                       ", Psi=", psi, ", R²=", r2_bp),
+        stringsAsFactors = FALSE
+      ))
+    }
+  }
+}
+     
+# ---------------------------
+# # Harmoniser les facteurs et espacer verticalement
+# # ---------------------------
+ 
+ annotations$REPETITION <- factor(
+  annotations$REPETITION,
+  levels = c("1","2","3","4")
+)
+ 
+annotations <- annotations %>%
+  mutate(
+    x = -0.001,
+    y = case_when(
+      REPETITION == "1" ~ max(subset$TR_MM_H)*1.02,
+      REPETITION == "2" ~ max(subset$TR_MM_H)*0.97,
+      REPETITION == "3" ~ max(subset$TR_MM_H)*0.92,
+      REPETITION == "4" ~ max(subset$TR_MM_H)*0.87
+    )
+  )
+
+annotations <- annotations %>%
+  arrange(as.numeric(REPETITION))
+
+
+plot_segm_htp<- ggplot(subset, aes(x = ETREF, y = TR_MM_H, color = REPETITION)) +
+  geom_point(size = 1) +
+  geom_line(
+    data = all_bp_data,
+    aes(x = ETREF, y = TR_MM_H, group = REPETITION, color = REPETITION),
+    size = 1
+  ) +
+  geom_text(
+  data = annotations,
+  aes(x = x, y = y, label = label, color = REPETITION),
+  hjust = 0,
+  size = 3,
+  show.legend = FALSE
+) +
+
+  # geom_text_repel(
+  #   data = annotations,
+  #   inherit.aes = FALSE,
+  #   aes(x = x, y = y, label = label, color = REPETITION),
+  #   direction = "y",
+  #   hjust = 0,
+  #       size = 3,
+  #   box.padding = 0.2,
+  #   max.overlaps = Inf,
+  #   segment.color = NA,
+  #   show.legend = FALSE
+  # ) +
+
+#  scale_color_manual(values = rep_colors) +
+  # scale_x_continuous(breaks = x_breaks) +
+
+  coord_cartesian(
+    xlim = c(x_min, x_max),
+    clip = "off"
+  ) +
+
+  labs(
+    x = expression(ET[ref] ~ (mm %.% h^{-1})),
+  y = "Tr (mm·h⁻¹)",
+    color = "Repetition"
+  ) +
+  theme_bw(base_size = 9) +
+  theme(
+    plot.margin = margin(5.5, 60, 5.5, 5.5)   # space for annotations
+  )
+
+```
+
+
+
+
+```{r}
+library(patchwork)
+library(ggplot2)
+
+library(patchwork)
+library(ggplot2)
+
+# Définir le thème publication
+theme_publi <- theme(
+  axis.title = element_text(size = 9),
+  axis.text  = element_text(size = 9),
+  legend.title = element_text(size = 9),
+  legend.text  = element_text(size = 9),
+  plot.title   = element_text(hjust = 0.5, face = "bold"),
+  legend.position = "bottom"
+)
+
+# Définir la scale couleur unique pour tous les plots
+rep_colors <- c("1" = "#A65E00", "2" = "#1C64A6", "3" = "#006747", "4" = "#7A2E00")
+scale_rep <- scale_color_manual(values = rep_colors, name = "Repetition")
+
+plot_lin_ltp  <- plot_lin_ltp  + scale_rep
+plot_segm_ltp <- plot_segm_ltp + scale_rep
+plot_lin_htp  <- plot_lin_htp  + scale_rep
+plot_segm_htp <- plot_segm_htp + scale_rep
+plot_lin_lysi <- plot_lin_lysi + scale_rep
+plot_segm_lysi <- plot_segm_lysi + scale_rep
+
+
+# Assembler les plots avec patchwork et une seule légende
+fig_finale <-
+(
+    (plot_lin_ltp  | plot_segm_ltp)  /
+  (plot_lin_htp  | plot_segm_htp) /
+  (plot_lin_lysi | plot_segm_lysi)
+
+) +
+  plot_layout(guides = "collect") &
+  plot_annotation(tag_levels = "A") &   # <-- lettres A, B, C...
+  theme_publi
+
+# Enregistrer la figure
+ggsave(
+  filename = "./figures/plot_TR_ETREF_across_platforms.png",
+  plot     = fig_finale,
+  width    = 20,
+  height   = 25,
+  units    = "cm",
+  dpi      = 300
+)
+
+
+```
+
+

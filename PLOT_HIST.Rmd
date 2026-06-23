@@ -1,0 +1,89 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+install.packages(c("png", "grid", "gridExtra"))
+library(png)
+library(grid)
+library(gridExtra)
+
+
+```
+
+```{r}
+# Read all PNG files
+
+##files <- list.files(path = "./figures", pattern = "^HIST_.*\\.png$", full.names = TRUE)
+
+
+files <- c("./figures/HIST_ROOT_AREA_LTP_PM_2025.png",
+           "./figures/HIST_ROOT_AREA_LTP_SG_2024.png",
+                "./figures/HIST_ROOT_SHOOT_LTP_PM_2025.png",
+                "./figures/HIST_ROOT_SHOOT_LTP_SG_2024.png",
+                "./figures/HIST_SLOPE_TRrate_ETREF_LTP_PM_2025.png",
+                "./figures/HIST_SLOPE_TRrate_ETREF_LTP_SG_2024.png",
+                "./figures/HIST_TE_LYSI_PM_2025.png",
+                "./figures/HIST_TE_LYSI_SG_2024.png",
+                "./figures/HIST_SLOPE_TR_ETREF_KC_LYSI_PM_2025.png",
+                "./figures/HIST_SLOPE_TR_ETREF_KC_LYSI_SG_2024.png",
+                "./figures/HIST_SLOPE_TR_ETREF_HTP_SG_2023.png")
+                
+                
+
+files <- sort(files)
+
+plots <- lapply(files, function(f) {
+  img <- readPNG(f)
+  rasterGrob(img, interpolate = TRUE)
+})
+
+# Sort files alphabetically (optional, ensures consistent order)
+
+```
+# 
+# -------------------------------
+# Step 2: Add labels A, B, C... to each plot
+# -------------------------------
+
+```{r}
+
+# Create a function to overlay label on a plot
+add_label <- function(grob, label) {
+  # Overlay text in top-left corner
+  grobTree(
+    grob,
+    textGrob(label, x = 0.02, y = 0.98, just = c("left", "top"),
+             gp = gpar(fontsize = 18, fontface = "bold", col = "black"))
+  )
+}
+
+
+
+# Labels: A, B, C, ...
+labels <- LETTERS[1:length(plots)]
+plots_labeled <- mapply(add_label, plots, labels, SIMPLIFY = FALSE)
+
+# -------------------------------
+# Step 3: Arrange plots in multipanel layout
+# -------------------------------
+num_cols <- 3 # number of columns
+num_rows <- ceiling(length(plots_labeled) / num_cols)
+
+# -------------------------------
+# Step 4: Save as PNG
+# -------------------------------
+png("multipanel_HIST.png", width = 2000, height = num_rows * 500)  # height scales with rows
+grid.arrange(grobs = plots_labeled, ncol = num_cols)
+dev.off()
+
+# -------------------------------
+# Done! The figure is saved as multipanel_HIST.png
+# -------------------------------
+
+```

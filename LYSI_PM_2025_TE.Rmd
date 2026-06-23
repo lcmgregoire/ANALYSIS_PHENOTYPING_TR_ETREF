@@ -206,7 +206,59 @@ write.table(x=data, file= paste0(opPATH.results, "values_cleaned_",trait_name,"_
 
 ```
 
+```{r}
+trait_name="SLOPE_TR_G_H_PLANT_ETREF"
+library(lme4)
 
+model_geno_blue <- lmer(
+  TE ~ N_GENO 
+ + (1 | BLOCK) , data = data)
+
+library(emmeans)
+library(dplyr)
+
+blue_result <- emmeans(model_geno_blue, ~ N_GENO) %>%
+  as.data.frame() %>%
+  rename(BLUE = emmean)
+
+panel <- panel %>%
+  mutate(N_GENO = as.character(N_GENO))
+
+blue_result <- left_join(
+  blue_result,
+  panel,
+  by = "N_GENO"
+)
+
+head(blue_result)
+
+save(
+  blue_result,
+  file = paste0(
+    opPATH.obj,
+    "BLUES_",
+    trait_name,
+    "_",
+    trial,
+    ".RData"
+  )
+)
+
+write.table(
+  blue_result,
+  file = paste0(
+    opPATH.results,
+    "BLUES_",
+    trait_name,
+    "_",
+    trial,
+    ".csv"
+  ),
+  dec = ".",
+  sep = ";",
+  row.names = FALSE
+)
+```
 
 
 ```{r anova geno, include = TRUE}

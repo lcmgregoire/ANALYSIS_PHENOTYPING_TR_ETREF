@@ -12,7 +12,7 @@ tinytex::is_tinytex()
 rm(list = ls())
 ```
 
-
+# libraries
 
 ```{r wd librairies, include=FALSE}
 # install.packages("tinytex")
@@ -59,6 +59,7 @@ opPATH.fig= "./figures/"
 
 ```
 
+# load data
 
 ```{r load data, include=FALSE}
 ## import data 
@@ -374,6 +375,63 @@ write.table(H2_cullis, file = paste0(opPATH.results,"heritability_cullis",trait_
 ```
 
 
+
+
+```{r}
+library(lme4)
+trait_name = "TE"
+trial = "LYSI_SG_2024"
+model_geno_blue <- lmer(  TE ~ N_GENO 
+                         + (1 | BLOCK) + (1 | REPETITION), # random factors
+  data = data)
+
+library(emmeans)
+library(dplyr)
+
+blue_result <- emmeans(model_geno_blue, ~ N_GENO) %>%
+  as.data.frame() %>%
+  rename(BLUE = emmean)
+
+panel <- panel %>%
+  mutate(N_GENO = as.character(N_GENO))
+
+blue_result <- left_join(
+  blue_result,
+  panel,
+  by = "N_GENO"
+)
+
+head(blue_result)
+
+save(
+  blue_result,
+  file = paste0(
+    opPATH.obj,
+    "BLUES_",
+    trait_name,
+    "_",
+    trial,
+    ".RData"
+  )
+)
+
+write.table(
+  blue_result,
+  file = paste0(
+    opPATH.results,
+    "BLUES_",
+    trait_name,
+    "_",
+    trial,
+    ".csv"
+  ),
+  dec = ".",
+  sep = ";",
+  row.names = FALSE
+)
+```
+
+
 ```{r blups}
 blup_geno <- ranef(m)$N_GENO ## save blup
 
@@ -402,5 +460,8 @@ write.table(TE_mean, file = paste0(opPATH.results,trait_name, "_mean_", trial, "
 
 ```
 
+
+
+##### LA 
 
 

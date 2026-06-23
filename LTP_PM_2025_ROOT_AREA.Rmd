@@ -369,10 +369,16 @@ blup_result <-  blup_geno %>%
   rename(BLUP = `(Intercept)`)
 
   
+panel <- panel %>%
+  mutate(N_GENO = as.character(N_GENO))
+
+blup_result = left_join(blup_result, panel, by="N_GENO")
+
+  
   head(blup_result)
 
-save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name,"_", trial, ".RData"))  
-write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name, "_", trial, ".csv"), dec = ".", sep = ";")
+save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name,"_", trial, ".RData")) 
+write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name, "_", trial, ".csv"), dec = ".", sep = ";",  row.names = FALSE)
 ```
 
 

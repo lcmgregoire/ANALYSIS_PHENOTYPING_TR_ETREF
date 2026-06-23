@@ -6505,9 +6505,15 @@ blup_result <-  blup_geno %>%
 
   
   head(blup_result)
+  
+panel <- panel %>%
+  mutate(N_GENO = as.character(N_GENO))
+
+blup_result = left_join(blup_result, panel, by="N_GENO")
 
 save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name,"_", Yvar, "_", Xvar, "_", trial, ".RData"))  
-write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name,"_", Yvar, "_", Xvar, "_", trial, ".csv"), dec = ".", sep = ";")
+write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name,"_", Yvar, "_", Xvar, "_", trial, ".csv"), dec = ".", sep = ";",  row.names = FALSE)
+
 ```
 
 

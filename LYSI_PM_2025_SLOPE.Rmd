@@ -174,10 +174,10 @@ colnames(data_TR_ETREF)[colnames(data_TR_ETREF) == "ETREF_MM_DAY"] <- "ETREF"
 
 
 ```{r calcul TR per day and TR rate  }
-data_TR_ETREF$TR_G_DAY = data_TR_ETREF$TR_G_INTERVAL / data_TR_ETREF$DURATION
+data_TR_ETREF$TR_MM_DAY = data_TR_ETREF$TR_MM_INTERVAL / data_TR_ETREF$DURATION
 
 # TR / LA on each period = TRrate 
-data_TR_ETREF$TR_RATE = data_TR_ETREF$TR_G_DAY / data_TR_ETREF$LA_PERIOD
+data_TR_ETREF$TR_RATE_MM_DAY_CM = data_TR_ETREF$TR_MM_DAY / data_TR_ETREF$LA_PERIOD
 ```
 
 ```{r}
@@ -203,8 +203,9 @@ data$TRENCH = as.factor(data$TRENCH)
 data$GENO_TRT= paste(data$N_GENO, data$REPETITION, sep = "_")
 data$GENO_TRT = as.factor(data$GENO_TRT)
 
+data$TR_RATE_MM_DAY = as.numeric(data$TR_RATE_MM_DAY)
 
-data$TR_RATE = as.numeric(data$TR_RATE)
+data$TR_RATE_MM_DAY_CM = as.numeric(data$TR_RATE_MM_DAY_CM)
 
 nlevels(data$N_GENO)
 nlevels(data$REPETITION)
@@ -228,34 +229,34 @@ variability among repetitions/block before cleaning :
 
 
 ```{r}
-ggplot(data, aes(x= data$PERIOD, y=data$TR_RATE)) + 
+ggplot(data, aes(x= data$PERIOD, y=data$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot()
 
 
-ggplot(data, aes(x= data$BLOCK, y=data$TR_RATE)) + 
+ggplot(data, aes(x= data$BLOCK, y=data$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot() # se
 
 
-ggplot(data, aes(x= data$REPETITION, y=data$TR_RATE)) + 
+ggplot(data, aes(x= data$REPETITION, y=data$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot()
 
 
-ggplot(data, aes(x= data$TRENCH, y=data$TR_RATE)) + 
+ggplot(data, aes(x= data$TRENCH, y=data$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot()
 
-ggplot(data, aes(x= data$PERIOD, y=data$TR_G_DAY)) + 
+ggplot(data, aes(x= data$PERIOD, y=data$TR_MM_DAY)) + 
   geom_boxplot()
 
 
-ggplot(data, aes(x= data$BLOCK, y=data$TR_G_DAY)) + 
+ggplot(data, aes(x= data$BLOCK, y=data$TR_MM_DAY)) + 
   geom_boxplot() # se
 
 
-ggplot(data, aes(x= data$REPETITION, y=data$TR_G_DAY)) + 
+ggplot(data, aes(x= data$REPETITION, y=data$TR_MM_DAY)) + 
   geom_boxplot()
 
 
-ggplot(data, aes(x= data$TRENCH, y=data$TR_G_DAY)) + 
+ggplot(data, aes(x= data$TRENCH, y=data$TR_MM_DAY)) + 
   geom_boxplot()
 ```
 
@@ -266,13 +267,12 @@ ggplot(data, aes(x= data$TRENCH, y=data$TR_G_DAY)) +
 count_before = nrow(data)
 
  data.RmOut <- data 
+ 
+ 
 
-# negative values need to be removed. Let's keep everything else for now (remove outliers possible for slope vales )
-for (i in 1:nrow(x = data.RmOut)) {
-     data.RmOut$TR_RATE[i][data.RmOut$TR_RATE[i]< 0] <- NA
+data.RmOut$TR_RATE_MM_DAY_CM[data.RmOut$TR_RATE_MM_DAY_CM < 0] <- NA
 
 
-     }
 
      data.RmOut = na.omit(data.RmOut)
      
@@ -285,41 +285,42 @@ out_tot = count_before - count_after
 paste0("still ", nrow(data.RmOut), " observations on ",  nlevels(data.RmOut$N_GENO), " genotypes ", out_tot, " outliers removed")
 
 ```
+
 ```{r outliers tr }
 ### boxplot to visualize variability among repetitions / BLOCK /  ... 
-ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$TR_RATE)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot()
 
-ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$TR_RATE)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot()
 
-ggplot(data.RmOut, aes(x= data.RmOut$TRENCH, y=data.RmOut$TR_RATE)) + 
-  geom_boxplot()
-
-
-ggplot(data.RmOut, aes(x= data.RmOut$TR_RATE, y=data.RmOut$TR_RATE)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$TRENCH, y=data.RmOut$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot()
 
 
-ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$TR_G_DAY)) + 
-  geom_boxplot()
-
-ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$TR_G_DAY)) + 
-  geom_boxplot()
-
-ggplot(data.RmOut, aes(x= data.RmOut$TRENCH, y=data.RmOut$TR_G_DAY)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$TR_RATE_MM_DAY_CM, y=data.RmOut$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot()
 
 
-ggplot(data.RmOut, aes(x= data.RmOut$TR_RATE, y=data.RmOut$TR_G_DAY)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$TR_MM_DAY)) + 
+  geom_boxplot()
+
+ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$TR_MM_DAY)) + 
+  geom_boxplot()
+
+ggplot(data.RmOut, aes(x= data.RmOut$TRENCH, y=data.RmOut$TR_MM_DAY)) + 
+  geom_boxplot()
+
+
+ggplot(data.RmOut, aes(x= data.RmOut$TR_RATE_MM_DAY_CM, y=data.RmOut$TR_MM_DAY)) + 
   geom_boxplot()
 ```
 ```{r sorting outliers}
 ## sup outliers need to be removed (impossible values)
 
-    out <- boxplot(data.RmOut$TR_RATE, plot = FALSE)$out # values to remove
-    tf <- which(data.RmOut$TR_RATE %in% out) # position in the list
- data.RmOut$TR_RATE[tf] <- NA
+    out <- boxplot(data.RmOut$TR_RATE_MM_DAY_CM, plot = FALSE)$out # values to remove
+    tf <- which(data.RmOut$TR_RATE_MM_DAY_CM %in% out) # position in the list
+ data.RmOut$TR_RATE_MM_DAY_CM[tf] <- NA
     
 
 
@@ -333,30 +334,30 @@ paste0("still ", nrow(data.RmOut), " observations on ",  nlevels(data.RmOut$N_GE
 
 ```
 ```{r visualisation TR rate after cleaning }
-ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$TR_RATE)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot()
 
-ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$TR_RATE)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot()
 
-ggplot(data.RmOut, aes(x= data.RmOut$TRENCH, y=data.RmOut$TR_RATE)) + 
-  geom_boxplot()
-
-
-ggplot(data.RmOut, aes(x= data.RmOut$TR_RATE, y=data.RmOut$TR_RATE)) + 
-  geom_boxplot()
-
-ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$TR_G_DAY)) + 
-  geom_boxplot()
-
-ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$TR_G_DAY)) + 
-  geom_boxplot()
-
-ggplot(data.RmOut, aes(x= data.RmOut$TRENCH, y=data.RmOut$TR_G_DAY)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$TRENCH, y=data.RmOut$TR_RATE_MM_DAY_CM)) + 
   geom_boxplot()
 
 
-ggplot(data.RmOut, aes(x= data.RmOut$TR_RATE, y=data.RmOut$TR_G_DAY)) + 
+ggplot(data.RmOut, aes(x= data.RmOut$TR_RATE_MM_DAY_CM, y=data.RmOut$TR_RATE_MM_DAY_CM)) + 
+  geom_boxplot()
+
+ggplot(data.RmOut, aes(x= data.RmOut$REPETITION, y=data.RmOut$TR_MM_DAY)) + 
+  geom_boxplot()
+
+ggplot(data.RmOut, aes(x= data.RmOut$BLOCK, y=data.RmOut$TR_MM_DAY)) + 
+  geom_boxplot()
+
+ggplot(data.RmOut, aes(x= data.RmOut$TRENCH, y=data.RmOut$TR_MM_DAY)) + 
+  geom_boxplot()
+
+
+ggplot(data.RmOut, aes(x= data.RmOut$TR_RATE_MM_DAY_CM, y=data.RmOut$TR_MM_DAY)) + 
   geom_boxplot()
 
 ```
@@ -371,7 +372,7 @@ load(file = paste0(opPATH.obj, "cleaned_data_TR_ETREF_",trial,".RData"))
 ```
 
 
-### 1.1. run models for TRrate- *VPD* 
+### 1.1. run models for TR- *VPD* 
 
 #### extract the slope for linear model
 ```{r model linear TRrate - VPD}
@@ -412,7 +413,7 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -470,7 +471,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 2) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
    mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -526,7 +527,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 2) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -586,7 +587,7 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
 
    if (nrow(subset_geno_trt) > 2) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -654,7 +655,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -736,7 +737,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -814,7 +815,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -897,7 +898,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -1103,7 +1104,7 @@ print(paste("best model R2 breakpoint to describe TRrate - VPD for (%) ",sum(bes
 
 #### plot model 
 
-```{r plot models TRrate- VPD , eval=FALSE}
+```{r plot models TRrate- VPD}
 rep_colors <- c(
   "1" = "#A65E00",
   "2" = "#1C64A6",
@@ -1125,7 +1126,7 @@ for (i in levels(data$N_GENO)) {
   # Keep repetitions with ≥ 3 complete values
   valid_reps <- subset %>%
     group_by(REPETITION) %>%
-    filter(sum(!is.na(TR_RATE) & !is.na(MEAN_VPD)) >= 3) %>%
+    filter(sum(!is.na(TR_RATE_MM_DAY_CM) & !is.na(MEAN_VPD)) >= 3) %>%
     pull(REPETITION) %>%
     unique()
 
@@ -1145,7 +1146,7 @@ for (i in levels(data$N_GENO)) {
     label_lin <- subset %>%
       group_by(REPETITION) %>%
       reframe({
-        mod <- lm(TR_RATE ~ 0 + MEAN_VPD, data = cur_data())
+        mod <- lm(TR_RATE_MM_DAY_CM ~ 0 + MEAN_VPD, data = cur_data())
         slope <- coef(mod)[["MEAN_VPD"]]
         r2_val <- summary(mod)$r.squared
         eq <- paste0("y = ", format(slope, scientific = TRUE, digits = 3), " * x")
@@ -1159,12 +1160,12 @@ for (i in levels(data$N_GENO)) {
       arrange(REPETITION) %>%
       mutate(
         x_label = x_limits[1] + seq(0, 0.1 * diff(x_limits), length.out = n()),
-        y_label = seq(max(subset$TR_RATE) * 1.05,
-                      max(subset$TR_RATE) * 0.85,
+        y_label = seq(max(subset$TR_RATE_MM_DAY_CM) * 1.05,
+                      max(subset$TR_RATE_MM_DAY_CM) * 0.85,
                       length.out = n())
       )
 
-    p1 <- ggplot(subset, aes(MEAN_VPD, TR_RATE, color = REPETITION)) +
+    p1 <- ggplot(subset, aes(MEAN_VPD, TR_RATE_MM_DAY_CM, color = REPETITION)) +
       geom_point() +
       geom_smooth(method = "lm", formula = y ~ 0 + x, se = FALSE, linewidth = 1) +
       geom_abline(
@@ -1186,7 +1187,7 @@ for (i in levels(data$N_GENO)) {
       labs(
         title = paste0("Linear model (intercept = 0) - Genotype ", i, " - ", geno_name),
         x = "VPD (kPa)",
-        y = "ETr rate (g·h⁻¹·cm⁻²)"
+        y = "Tr rate (mm·day⁻¹·cm⁻²)"
       ) +
       theme_bw(base_size = 14) +
       coord_cartesian(xlim = x_limits)
@@ -1202,7 +1203,7 @@ for (i in levels(data$N_GENO)) {
       subset_rep <- subset %>% filter(REPETITION == rep)
 
       bp_model <- tryCatch({
-        lm_base <- lm(TR_RATE ~ MEAN_VPD, data = subset_rep)
+        lm_base <- lm(TR_RATE_MM_DAY_CM ~ MEAN_VPD, data = subset_rep)
         segmented(
           lm_base,
           seg.Z = ~ MEAN_VPD,
@@ -1217,7 +1218,7 @@ for (i in levels(data$N_GENO)) {
                          max(subset_rep$MEAN_VPD),
                          length.out = 100)
         )
-        bp_pred$TR_RATE <- predict(bp_model, newdata = bp_pred)
+        bp_pred$TR_RATE_MM_DAY_CM <- predict(bp_model, newdata = bp_pred)
         bp_pred$REPETITION <- rep
         all_bp_data <- rbind(all_bp_data, bp_pred)
 
@@ -1241,15 +1242,15 @@ for (i in levels(data$N_GENO)) {
       arrange(REPETITION) %>%
       mutate(
         x = x_limits[2],
-        y = seq(max(subset$TR_RATE) * 1.05,
-                max(subset$TR_RATE) * 0.85,
+        y = seq(max(subset$TR_RATE_MM_DAY_CM) * 1.05,
+                max(subset$TR_RATE_MM_DAY_CM) * 0.85,
                 length.out = n())
       )
 
-    p2 <- ggplot(subset, aes(MEAN_VPD, TR_RATE, color = REPETITION)) +
+    p2 <- ggplot(subset, aes(MEAN_VPD, TR_RATE_MM_DAY_CM, color = REPETITION)) +
       geom_point() +
       geom_line(data = all_bp_data,
-                aes(MEAN_VPD, TR_RATE, group = REPETITION),
+                aes(MEAN_VPD, TR_RATE_MM_DAY_CM, group = REPETITION),
                 linewidth = 1) +
       geom_text(
         data = annotations,
@@ -1261,7 +1262,7 @@ for (i in levels(data$N_GENO)) {
       labs(
         title = paste0("Segmented model - Genotype ", i, " - ", geno_name),
         x = "VPD (kPa)",
-        y = "ETr rate (g·h⁻¹·cm⁻²)"
+        y = "TR (mm·day⁻¹·cm⁻²)"
       ) +
       theme_bw(base_size = 14) +
       coord_cartesian(xlim = x_limits)
@@ -1330,7 +1331,7 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -1391,7 +1392,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -1448,7 +1449,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -1508,7 +1509,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
  x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -1577,7 +1578,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -1658,7 +1659,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -1738,7 +1739,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -1823,7 +1824,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -2021,7 +2022,7 @@ print(paste("best model R2 breakpoint for (%) ",sum(best_model_R2$model == "brea
 #### plot model 
 
 
-```{r plot  TRrate- ETREF, eval=FALSE}
+```{r plot  TRrate- ETREF}
 
 rep_colors <- c(
   "1" = "#A65E00",
@@ -2046,7 +2047,7 @@ for (i in levels(data$N_GENO)) {
   # Keep only repetitions with ≥ 3 complete cases
   valid_reps <- subset %>%
     group_by(REPETITION) %>%
-    filter(sum(!is.na(TR_RATE) & !is.na(ETREF)) >= 3) %>%
+    filter(sum(!is.na(TR_RATE_MM_DAY_CM) & !is.na(ETREF)) >= 3) %>%
     pull(REPETITION) %>%
     unique()
 
@@ -2064,7 +2065,7 @@ for (i in levels(data$N_GENO)) {
 label_lin <- subset %>%
 group_by(REPETITION) %>%
 reframe({
-  mod <- lm(TR_RATE ~ 0 + ETREF, data = cur_data())
+  mod <- lm(TR_RATE_MM_DAY_CM ~ 0 + ETREF, data = cur_data())
   slope <- as.numeric(coef(mod)[["ETREF"]])
   r2_val <- summary(mod)$r.squared
 # 
@@ -2083,8 +2084,8 @@ arrange(REPETITION) %>%
 mutate(
   # Position de base en haut à gauche
   x_base = 0,
-  y_top = max(subset$TR_RATE) * 1.05,
-  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_RATE)),
+  y_top = max(subset$TR_RATE_MM_DAY_CM) * 1.05,
+  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_RATE_MM_DAY_CM)),
   # répartir verticalement du haut vers le bas
   y_label = y_top - (row_number() - 1) * (y_top - y_bottom) / (n() - 1),
   # petit décalage horizontal pour chaque répétition
@@ -2093,7 +2094,7 @@ mutate(
 
 
 # ### Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
-p1 <- ggplot(subset, aes(x = ETREF, y = TR_RATE, color = REPETITION)) +
+p1 <- ggplot(subset, aes(x = ETREF, y = TR_RATE_MM_DAY_CM, color = REPETITION)) +
 geom_point() +
 # 
 # régression locale
@@ -2123,7 +2124,7 @@ scale_color_manual(values = rep_colors) +
 labs(
   title = paste0("Linear model (intercept = 0) - Genotype ", i, " - ", geno_name),
   x = "ETREF (mm.day⁻¹)",
-  y = "ETr rate (g·h⁻¹·cm⁻²)",
+        y = "TR (mm·day⁻¹·cm⁻²)",
   color = "Repetition"
 ) +
 theme_bw(base_size = 14) +
@@ -2153,7 +2154,7 @@ coord_cartesian(xlim = c(0, NA))
 
  
   bp_model <- tryCatch({
-    lm_base <- lm(TR_RATE ~ ETREF, data = subset_rep)
+    lm_base <- lm(TR_RATE_MM_DAY_CM ~ ETREF, data = subset_rep)
     segmented(lm_base, seg.Z = ~ ETREF,
               psi = list(ETREF = median(subset_rep$ETREF, na.rm = TRUE)))
   }, error = function(e) NULL)
@@ -2165,7 +2166,7 @@ coord_cartesian(xlim = c(0, NA))
       data.frame(ETREF = seq(min(subset_rep$ETREF),
                                 max(subset_rep$ETREF),
                                 length.out = 100)) %>%
-        mutate(TR_RATE = predict(bp_model, newdata = .),
+        mutate(TR_RATE_MM_DAY_CM = predict(bp_model, newdata = .),
                REPETITION = rep)
     }, error = function(e) NULL)
 
@@ -2198,8 +2199,8 @@ annotations$REPETITION <- factor(annotations$REPETITION, levels = levels(subset$
 
 n_rep <- nrow(annotations)
 if (n_rep > 0) {
- y_base <- max(subset$TR_RATE) * 1.05  
-y_spacing <- 0.05 * (max(subset$TR_RATE) - min(subset$TR_RATE))  
+ y_base <- max(subset$TR_RATE_MM_DAY_CM) * 1.05  
+y_spacing <- 0.05 * (max(subset$TR_RATE_MM_DAY_CM) - min(subset$TR_RATE_MM_DAY_CM))  
 
 
 annotations <- annotations %>%
@@ -2213,7 +2214,7 @@ annotations <- annotations %>%
     REPETITION = subset$REPETITION[1],
     label = "Segmented models failed",
     x = max(subset$ETREF) * 1.05,
-    y = max(subset$TR_RATE),
+    y = max(subset$TR_RATE_MM_DAY_CM),
     stringsAsFactors = FALSE
   )
 }
@@ -2222,10 +2223,10 @@ annotations <- annotations %>%
 # # Création du graphique
 # # ---------------------------
 if (nrow(all_bp_data) > 0) {
-  p2 <- ggplot(subset, aes(x = ETREF, y = TR_RATE, color = REPETITION)) +
+  p2 <- ggplot(subset, aes(x = ETREF, y = TR_RATE_MM_DAY_CM, color = REPETITION)) +
     geom_point() +
     geom_line(data = all_bp_data,
-              aes(x = ETREF, y = TR_RATE, group = REPETITION, color = REPETITION),
+              aes(x = ETREF, y = TR_RATE_MM_DAY_CM, group = REPETITION, color = REPETITION),
               size = 1) +
     geom_text(data = annotations,
               aes(x = x, y = y, label = label, color = REPETITION),
@@ -2233,7 +2234,8 @@ if (nrow(all_bp_data) > 0) {
     scale_color_manual(values = rep_colors) +
     labs(title = paste0("Segmented model - Genotype ", i," - ", geno_name),
       x = "ETREF (mm.day⁻¹)",
-    y = "ETr rate (g·h⁻¹·cm⁻²)",      color = "Repetition") +
+        y = "TR (mm·day⁻¹·cm⁻²)",
+    color = "Repetition") +
     theme_bw(base_size = 14)
 } else {
 #  fallback si tous les modèles échouent
@@ -2299,7 +2301,7 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj","AIC",  "
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -2358,7 +2360,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -2412,7 +2414,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -2469,7 +2471,7 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
 
    if (nrow(subset_geno_trt) > 0) { 
  x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -2535,7 +2537,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -2616,7 +2618,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -2694,7 +2696,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -2778,7 +2780,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_RATE
+  y <- subset_geno_trt$TR_RATE_MM_DAY_CM
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -2978,7 +2980,7 @@ print(paste("best model R2 TRrate_ETREF_KC breakpoint for (%) ",sum(best_model_R
 
 #### plot model 
 
-```{r plot TRrate- ETREF_KC, eval=FALSE }
+```{r plot TRrate- ETREF_KC }
 rep_colors <- c(
   "1" = "#A65E00",
   "2" = "#1C64A6",
@@ -3002,7 +3004,7 @@ for (i in levels(data$N_GENO)) {
   # Keep only repetitions with ≥ 3 complete cases
   valid_reps <- subset %>%
     group_by(REPETITION) %>%
-    filter(sum(!is.na(TR_RATE) & !is.na(ETREF_KC)) >= 3) %>%
+    filter(sum(!is.na(TR_RATE_MM_DAY_CM) & !is.na(ETREF_KC)) >= 3) %>%
     pull(REPETITION) %>%
     unique()
 
@@ -3020,7 +3022,7 @@ for (i in levels(data$N_GENO)) {
 label_lin <- subset %>%
 group_by(REPETITION) %>%
 reframe({
-  mod <- lm(TR_RATE ~ 0 + ETREF_KC, data = cur_data())
+  mod <- lm(TR_RATE_MM_DAY_CM ~ 0 + ETREF_KC, data = cur_data())
   slope <- as.numeric(coef(mod)[["ETREF_KC"]])
   r2_val <- summary(mod)$r.squared
 # 
@@ -3039,8 +3041,8 @@ arrange(REPETITION) %>%
 mutate(
   # Position de base en haut à gauche
   x_base = 0,
-  y_top = max(subset$TR_RATE) * 1.05,
-  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_RATE)),
+  y_top = max(subset$TR_RATE_MM_DAY_CM) * 1.05,
+  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_RATE_MM_DAY_CM)),
   # répartir verticalement du haut vers le bas
   y_label = y_top - (row_number() - 1) * (y_top - y_bottom) / (n() - 1),
   # petit décalage horizontal pour chaque répétition
@@ -3049,7 +3051,7 @@ mutate(
 
 
 # ### Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
-p1 <- ggplot(subset, aes(x = ETREF_KC, y = TR_RATE, color = REPETITION)) +
+p1 <- ggplot(subset, aes(x = ETREF_KC, y = TR_RATE_MM_DAY_CM, color = REPETITION)) +
 geom_point() +
 # 
 # régression locale
@@ -3078,8 +3080,8 @@ geom_text(
 scale_color_manual(values = rep_colors) +
 labs(
   title = paste0("Linear model (intercept = 0) - Genotype ", i, " - ", geno_name),
-  x = "ETREF_KC (mm.day⁻¹.kPa)",
-  y = "ETr rate (g·h⁻¹·cm⁻²)",
+  x = "ETref x Kc (mm.day⁻¹.kPa)",
+        y = "TR (mm·day⁻¹·cm⁻²)",
   color = "Repetition"
 ) +
 theme_bw(base_size = 14) +
@@ -3109,7 +3111,7 @@ coord_cartesian(xlim = c(0, NA))
 
  
   bp_model <- tryCatch({
-    lm_base <- lm(TR_RATE ~ ETREF_KC, data = subset_rep)
+    lm_base <- lm(TR_RATE_MM_DAY_CM ~ ETREF_KC, data = subset_rep)
     segmented(lm_base, seg.Z = ~ ETREF_KC,
               psi = list(ETREF_KC = median(subset_rep$ETREF_KC, na.rm = TRUE)))
   }, error = function(e) NULL)
@@ -3121,7 +3123,7 @@ coord_cartesian(xlim = c(0, NA))
       data.frame(ETREF_KC = seq(min(subset_rep$ETREF_KC),
                                 max(subset_rep$ETREF_KC),
                                 length.out = 100)) %>%
-        mutate(TR_RATE = predict(bp_model, newdata = .),
+        mutate(TR_RATE_MM_DAY_CM = predict(bp_model, newdata = .),
                REPETITION = rep)
     }, error = function(e) NULL)
 
@@ -3154,8 +3156,8 @@ annotations$REPETITION <- factor(annotations$REPETITION, levels = levels(subset$
 
 n_rep <- nrow(annotations)
 if (n_rep > 0) {
- y_base <- max(subset$TR_RATE) * 1.05  
-y_spacing <- 0.05 * (max(subset$TR_RATE) - min(subset$TR_RATE))  
+ y_base <- max(subset$TR_RATE_MM_DAY_CM) * 1.05  
+y_spacing <- 0.05 * (max(subset$TR_RATE_MM_DAY_CM) - min(subset$TR_RATE_MM_DAY_CM))  
 
 
 annotations <- annotations %>%
@@ -3169,7 +3171,7 @@ annotations <- annotations %>%
     REPETITION = subset$REPETITION[1],
     label = "Segmented models failed",
     x = max(subset$ETREF_KC) * 1.05,
-    y = max(subset$TR_RATE),
+    y = max(subset$TR_RATE_MM_DAY_CM),
     stringsAsFactors = FALSE
   )
 }
@@ -3178,18 +3180,19 @@ annotations <- annotations %>%
 # # Création du graphique
 # # ---------------------------
 if (nrow(all_bp_data) > 0) {
-  p2 <- ggplot(subset, aes(x = ETREF_KC, y = TR_RATE, color = REPETITION)) +
+  p2 <- ggplot(subset, aes(x = ETREF_KC, y = TR_RATE_MM_DAY_CM, color = REPETITION)) +
     geom_point() +
     geom_line(data = all_bp_data,
-              aes(x = ETREF_KC, y = TR_RATE, group = REPETITION, color = REPETITION),
+              aes(x = ETREF_KC, y = TR_RATE_MM_DAY_CM, group = REPETITION, color = REPETITION),
               size = 1) +
     geom_text(data = annotations,
               aes(x = x, y = y, label = label, color = REPETITION),
               hjust = 1, vjust = 1, size = 3.5, show.legend = FALSE) +
     scale_color_manual(values = rep_colors) +
     labs(title = paste0("Segmented model - Genotype ", i," - ", geno_name),
-      x = "ETREF_KC (mm.day⁻¹.kPa)",
-    y = "ETr rate (g·h⁻¹·cm⁻²)",      color = "Repetition") +
+      x = "ETref x Kc (mm.day⁻¹.kPa)",
+        y = "TR (mm·day⁻¹·cm⁻²)",
+    color = "Repetition") +
     theme_bw(base_size = 14)
 } else {
 #  fallback si tous les modèles échouent
@@ -3254,7 +3257,7 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -3313,7 +3316,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 2) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -3368,7 +3371,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 2) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -3425,7 +3428,7 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
 
    if (nrow(subset_geno_trt) > 2) { 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -3493,7 +3496,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -3574,7 +3577,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -3652,7 +3655,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -3736,7 +3739,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$MEAN_VPD
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -3934,7 +3937,7 @@ print(paste("best model R2 breakpoint to describe TR - VPD for (%) ",sum(best_mo
 
 #### plot model 
 
-```{r plot TR- VPD, , eval=FALSE}
+```{r plot TR- VPD}
 
 rep_colors <- c(
   "1" = "#A65E00",
@@ -3959,7 +3962,7 @@ for (i in levels(data$N_GENO)) {
   # Keep only repetitions with ≥ 3 complete cases
   valid_reps <- subset %>%
     group_by(REPETITION) %>%
-    filter(sum(!is.na(TR_G_DAY) & !is.na(MEAN_VPD)) >= 3) %>%
+    filter(sum(!is.na(TR_MM_DAY) & !is.na(MEAN_VPD)) >= 3) %>%
     pull(REPETITION) %>%
     unique()
 
@@ -3977,7 +3980,7 @@ for (i in levels(data$N_GENO)) {
 label_lin <- subset %>%
 group_by(REPETITION) %>%
 reframe({
-  mod <- lm(TR_G_DAY ~ 0 + MEAN_VPD, data = cur_data())
+  mod <- lm(TR_MM_DAY ~ 0 + MEAN_VPD, data = cur_data())
   slope <- as.numeric(coef(mod)[["MEAN_VPD"]])
   r2_val <- summary(mod)$r.squared
 # 
@@ -3996,8 +3999,8 @@ arrange(REPETITION) %>%
 mutate(
   # Position de base en haut à gauche
   x_base = 0,
-  y_top = max(subset$TR_G_DAY) * 1.05,
-  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_G_DAY)),
+  y_top = max(subset$TR_MM_DAY) * 1.05,
+  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_MM_DAY)),
   # répartir verticalement du haut vers le bas
   y_label = y_top - (row_number() - 1) * (y_top - y_bottom) / (n() - 1),
   # petit décalage horizontal pour chaque répétition
@@ -4006,7 +4009,7 @@ mutate(
 
 
 # ### Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
-p1 <- ggplot(subset, aes(x = MEAN_VPD, y = TR_G_DAY, color = REPETITION)) +
+p1 <- ggplot(subset, aes(x = MEAN_VPD, y = TR_MM_DAY, color = REPETITION)) +
 geom_point() +
 # 
 # régression locale
@@ -4036,7 +4039,7 @@ scale_color_manual(values = rep_colors) +
 labs(
   title = paste0("Linear model (intercept = 0) - Genotype ", i, " - ", geno_name),
   x = "VPD (kPa)",
-  y = "ETr (g·day⁻¹)",
+  y = "Tr (mm·day⁻¹)",
   color = "Repetition"
 ) +
 theme_bw(base_size = 14) +
@@ -4066,7 +4069,7 @@ coord_cartesian(xlim = c(0, NA))
 
  
   bp_model <- tryCatch({
-    lm_base <- lm(TR_G_DAY ~ MEAN_VPD, data = subset_rep)
+    lm_base <- lm(TR_MM_DAY ~ MEAN_VPD, data = subset_rep)
     segmented(lm_base, seg.Z = ~ MEAN_VPD,
               psi = list(MEAN_VPD = median(subset_rep$MEAN_VPD, na.rm = TRUE)))
   }, error = function(e) NULL)
@@ -4078,7 +4081,7 @@ coord_cartesian(xlim = c(0, NA))
       data.frame(MEAN_VPD = seq(min(subset_rep$MEAN_VPD),
                                 max(subset_rep$MEAN_VPD),
                                 length.out = 100)) %>%
-        mutate(TR_G_DAY = predict(bp_model, newdata = .),
+        mutate(TR_MM_DAY = predict(bp_model, newdata = .),
                REPETITION = rep)
     }, error = function(e) NULL)
 
@@ -4111,8 +4114,8 @@ annotations$REPETITION <- factor(annotations$REPETITION, levels = levels(subset$
 
 n_rep <- nrow(annotations)
 if (n_rep > 0) {
- y_base <- max(subset$TR_G_DAY) * 1.05  
-y_spacing <- 0.05 * (max(subset$TR_G_DAY) - min(subset$TR_G_DAY))  
+ y_base <- max(subset$TR_MM_DAY) * 1.05  
+y_spacing <- 0.05 * (max(subset$TR_MM_DAY) - min(subset$TR_MM_DAY))  
 
 
 annotations <- annotations %>%
@@ -4126,7 +4129,7 @@ annotations <- annotations %>%
     REPETITION = subset$REPETITION[1],
     label = "Segmented models failed",
     x = max(subset$MEAN_VPD) * 1.05,
-    y = max(subset$TR_G_DAY),
+    y = max(subset$TR_MM_DAY),
     stringsAsFactors = FALSE
   )
 }
@@ -4135,10 +4138,10 @@ annotations <- annotations %>%
 # # Création du graphique
 # # ---------------------------
 if (nrow(all_bp_data) > 0) {
-  p2 <- ggplot(subset, aes(x = MEAN_VPD, y = TR_G_DAY, color = REPETITION)) +
+  p2 <- ggplot(subset, aes(x = MEAN_VPD, y = TR_MM_DAY, color = REPETITION)) +
     geom_point() +
     geom_line(data = all_bp_data,
-              aes(x = MEAN_VPD, y = TR_G_DAY, group = REPETITION, color = REPETITION),
+              aes(x = MEAN_VPD, y = TR_MM_DAY, group = REPETITION, color = REPETITION),
               size = 1) +
     geom_text(data = annotations,
               aes(x = x, y = y, label = label, color = REPETITION),
@@ -4146,7 +4149,7 @@ if (nrow(all_bp_data) > 0) {
     scale_color_manual(values = rep_colors) +
     labs(title = paste0("Segmented model - Genotype ", i," - ", geno_name),
       x = "VPD (kPa)",
-  y = "ETr (g·day⁻¹)",
+  y = "Tr (mm·day⁻¹)",
     color = "Repetition") +
     theme_bw(base_size = 14)
 } else {
@@ -4215,7 +4218,7 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -4274,7 +4277,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -4328,7 +4331,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -4385,7 +4388,7 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
 
    if (nrow(subset_geno_trt) > 0) { 
  x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -4451,7 +4454,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -4532,7 +4535,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -4610,7 +4613,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -4694,7 +4697,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -4893,7 +4896,7 @@ print(paste("best model R2 TR_ETREF breakpoint for (%) ",sum(best_model_R2$model
 
 #### plot model 
 
-```{r plot  TR- ETREF , eval=FALSE}
+```{r plot  TR- ETREF}
 
 
 rep_colors <- c(
@@ -4919,7 +4922,7 @@ for (i in levels(data$N_GENO)) {
   # Keep only repetitions with ≥ 3 complete cases
   valid_reps <- subset %>%
     group_by(REPETITION) %>%
-    filter(sum(!is.na(TR_G_DAY) & !is.na(ETREF)) >= 3) %>%
+    filter(sum(!is.na(TR_MM_DAY) & !is.na(ETREF)) >= 3) %>%
     pull(REPETITION) %>%
     unique()
 
@@ -4937,7 +4940,7 @@ for (i in levels(data$N_GENO)) {
 label_lin <- subset %>%
 group_by(REPETITION) %>%
 reframe({
-  mod <- lm(TR_G_DAY ~ 0 + ETREF, data = cur_data())
+  mod <- lm(TR_MM_DAY ~ 0 + ETREF, data = cur_data())
   slope <- as.numeric(coef(mod)[["ETREF"]])
   r2_val <- summary(mod)$r.squared
 # 
@@ -4956,8 +4959,8 @@ arrange(REPETITION) %>%
 mutate(
   # Position de base en haut à gauche
   x_base = 0,
-  y_top = max(subset$TR_G_DAY) * 1.05,
-  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_G_DAY)),
+  y_top = max(subset$TR_MM_DAY) * 1.05,
+  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_MM_DAY)),
   # répartir verticalement du haut vers le bas
   y_label = y_top - (row_number() - 1) * (y_top - y_bottom) / (n() - 1),
   # petit décalage horizontal pour chaque répétition
@@ -4966,7 +4969,7 @@ mutate(
 
 
 # ### Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
-p1 <- ggplot(subset, aes(x = ETREF, y = TR_G_DAY, color = REPETITION)) +
+p1 <- ggplot(subset, aes(x = ETREF, y = TR_MM_DAY, color = REPETITION)) +
 geom_point() +
 # 
 # régression locale
@@ -4995,8 +4998,8 @@ geom_text(
 scale_color_manual(values = rep_colors) +
 labs(
   title = paste0("Linear model (intercept = 0) - Genotype ", i, " - ", geno_name),
-  x = "ETREF (mm.day⁻¹)",
-  y = "ETr (g·day⁻¹)",
+  x = "ETref (mm.day⁻¹)",
+  y = "Tr (g·day⁻¹)",
   color = "Repetition"
 ) +
 theme_bw(base_size = 14) +
@@ -5026,7 +5029,7 @@ coord_cartesian(xlim = c(0, NA))
 
  
   bp_model <- tryCatch({
-    lm_base <- lm(TR_G_DAY ~ ETREF, data = subset_rep)
+    lm_base <- lm(TR_MM_DAY ~ ETREF, data = subset_rep)
     segmented(lm_base, seg.Z = ~ ETREF,
               psi = list(ETREF = median(subset_rep$ETREF, na.rm = TRUE)))
   }, error = function(e) NULL)
@@ -5038,7 +5041,7 @@ coord_cartesian(xlim = c(0, NA))
       data.frame(ETREF = seq(min(subset_rep$ETREF),
                                 max(subset_rep$ETREF),
                                 length.out = 100)) %>%
-        mutate(TR_G_DAY = predict(bp_model, newdata = .),
+        mutate(TR_MM_DAY = predict(bp_model, newdata = .),
                REPETITION = rep)
     }, error = function(e) NULL)
 
@@ -5071,8 +5074,8 @@ annotations$REPETITION <- factor(annotations$REPETITION, levels = levels(subset$
 
 n_rep <- nrow(annotations)
 if (n_rep > 0) {
- y_base <- max(subset$TR_G_DAY) * 1.05  
-y_spacing <- 0.05 * (max(subset$TR_G_DAY) - min(subset$TR_G_DAY))  
+ y_base <- max(subset$TR_MM_DAY) * 1.05  
+y_spacing <- 0.05 * (max(subset$TR_MM_DAY) - min(subset$TR_MM_DAY))  
 
 
 annotations <- annotations %>%
@@ -5086,7 +5089,7 @@ annotations <- annotations %>%
     REPETITION = subset$REPETITION[1],
     label = "Segmented models failed",
     x = max(subset$ETREF) * 1.05,
-    y = max(subset$TR_G_DAY),
+    y = max(subset$TR_MM_DAY),
     stringsAsFactors = FALSE
   )
 }
@@ -5095,10 +5098,10 @@ annotations <- annotations %>%
 # # Création du graphique
 # # ---------------------------
 if (nrow(all_bp_data) > 0) {
-  p2 <- ggplot(subset, aes(x = ETREF, y = TR_G_DAY, color = REPETITION)) +
+  p2 <- ggplot(subset, aes(x = ETREF, y = TR_MM_DAY, color = REPETITION)) +
     geom_point() +
     geom_line(data = all_bp_data,
-              aes(x = ETREF, y = TR_G_DAY, group = REPETITION, color = REPETITION),
+              aes(x = ETREF, y = TR_MM_DAY, group = REPETITION, color = REPETITION),
               size = 1) +
     geom_text(data = annotations,
               aes(x = x, y = y, label = label, color = REPETITION),
@@ -5106,7 +5109,7 @@ if (nrow(all_bp_data) > 0) {
     scale_color_manual(values = rep_colors) +
     labs(title = paste0("Segmented model - Genotype ", i," - ", geno_name),
       x = "ETREF (mm.day⁻¹)",
-  y = "ETr (g·day⁻¹)",
+  y = "Tr (mm·day⁻¹)",
     color = "Repetition") +
     theme_bw(base_size = 14)
 } else {
@@ -5174,7 +5177,7 @@ header = c("N_GENO", "GENO_NAME", "REPETITION", "SLOPE", "R2", "R2adj", "AIC",  
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -5233,7 +5236,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -5287,7 +5290,7 @@ write.table(t(header), file=outputfile, sep=",", quote=FALSE,
 
    if (nrow(subset_geno_trt) > 0) { 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -5344,7 +5347,7 @@ outputfile<- paste0( opPATH.obj,trait_name, "_", model_name, "_geno_rep4_", tria
 
    if (nrow(subset_geno_trt) > 0) { 
  x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
 
   mod<-lm(formula = formula, data = subset_geno_trt)
   df_summary<-summary(mod)
@@ -5410,7 +5413,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -5490,7 +5493,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -5567,7 +5570,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -5651,7 +5654,7 @@ subset_geno_trt= subset_geno  %>%
   
 
   x <- subset_geno_trt$ETREF_KC
-  y <- subset_geno_trt$TR_G_DAY
+  y <- subset_geno_trt$TR_MM_DAY
   p <- NULL
   try(p <- lm(y~x),silent=TRUE)
   l <- NULL
@@ -5851,7 +5854,7 @@ print(paste("best model R2 TR_ETREF_KC breakpoint for (%) ",sum(best_model_R2$mo
 ```
 #### plot model 
 
-```{r plot models TR- ETREF_KC, eval=FALSE}
+```{r plot models TR- ETREF_KC}
 
 
 rep_colors <- c(
@@ -5877,7 +5880,7 @@ for (i in levels(data$N_GENO)) {
   # Keep only repetitions with ≥ 3 complete cases
   valid_reps <- subset %>%
     group_by(REPETITION) %>%
-    filter(sum(!is.na(TR_G_DAY) & !is.na(ETREF_KC)) >= 3) %>%
+    filter(sum(!is.na(TR_MM_DAY) & !is.na(ETREF_KC)) >= 3) %>%
     pull(REPETITION) %>%
     unique()
 
@@ -5895,7 +5898,7 @@ for (i in levels(data$N_GENO)) {
 label_lin <- subset %>%
 group_by(REPETITION) %>%
 reframe({
-  mod <- lm(TR_G_DAY ~ 0 + ETREF_KC, data = cur_data())
+  mod <- lm(TR_MM_DAY ~ 0 + ETREF_KC, data = cur_data())
   slope <- as.numeric(coef(mod)[["ETREF_KC"]])
   r2_val <- summary(mod)$r.squared
 # 
@@ -5914,8 +5917,8 @@ arrange(REPETITION) %>%
 mutate(
   # Position de base en haut à gauche
   x_base = 0,
-  y_top = max(subset$TR_G_DAY) * 1.05,
-  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_G_DAY)),
+  y_top = max(subset$TR_MM_DAY) * 1.05,
+  y_bottom = y_top - 0.2 * (y_top - min(subset$TR_MM_DAY)),
   # répartir verticalement du haut vers le bas
   y_label = y_top - (row_number() - 1) * (y_top - y_bottom) / (n() - 1),
   # petit décalage horizontal pour chaque répétition
@@ -5924,7 +5927,7 @@ mutate(
 
 
 # ### Graphique : points, régression, droite prolongée, labels fixes en haut à gauche
-p1 <- ggplot(subset, aes(x = ETREF_KC, y = TR_G_DAY, color = REPETITION)) +
+p1 <- ggplot(subset, aes(x = ETREF_KC, y = TR_MM_DAY, color = REPETITION)) +
 geom_point() +
 # 
 # régression locale
@@ -5953,8 +5956,8 @@ geom_text(
 scale_color_manual(values = rep_colors) +
 labs(
   title = paste0("Linear model (intercept = 0) - Genotype ", i, " - ", geno_name),
-  x = "ETREF_KC (mm.day⁻¹.kPa)",
-  y = "ETr (g·day⁻¹)",
+  x = "ETref x Kc (mm.day⁻¹.kPa)",
+  y = "Tr (g·day⁻¹)",
   color = "Repetition"
 ) +
 theme_bw(base_size = 14) +
@@ -5984,7 +5987,7 @@ coord_cartesian(xlim = c(0, NA))
 
  
   bp_model <- tryCatch({
-    lm_base <- lm(TR_G_DAY ~ ETREF_KC, data = subset_rep)
+    lm_base <- lm(TR_MM_DAY ~ ETREF_KC, data = subset_rep)
     segmented(lm_base, seg.Z = ~ ETREF_KC,
               psi = list(ETREF_KC = median(subset_rep$ETREF_KC, na.rm = TRUE)))
   }, error = function(e) NULL)
@@ -5996,7 +5999,7 @@ coord_cartesian(xlim = c(0, NA))
       data.frame(ETREF_KC = seq(min(subset_rep$ETREF_KC),
                                 max(subset_rep$ETREF_KC),
                                 length.out = 100)) %>%
-        mutate(TR_G_DAY = predict(bp_model, newdata = .),
+        mutate(TR_MM_DAY = predict(bp_model, newdata = .),
                REPETITION = rep)
     }, error = function(e) NULL)
 
@@ -6029,8 +6032,8 @@ annotations$REPETITION <- factor(annotations$REPETITION, levels = levels(subset$
 
 n_rep <- nrow(annotations)
 if (n_rep > 0) {
- y_base <- max(subset$TR_G_DAY) * 1.05  
-y_spacing <- 0.05 * (max(subset$TR_G_DAY) - min(subset$TR_G_DAY))  
+ y_base <- max(subset$TR_MM_DAY) * 1.05  
+y_spacing <- 0.05 * (max(subset$TR_MM_DAY) - min(subset$TR_MM_DAY))  
 
 
 annotations <- annotations %>%
@@ -6044,7 +6047,7 @@ annotations <- annotations %>%
     REPETITION = subset$REPETITION[1],
     label = "Segmented models failed",
     x = max(subset$ETREF_KC) * 1.05,
-    y = max(subset$TR_G_DAY),
+    y = max(subset$TR_MM_DAY),
     stringsAsFactors = FALSE
   )
 }
@@ -6053,18 +6056,19 @@ annotations <- annotations %>%
 # # Création du graphique
 # # ---------------------------
 if (nrow(all_bp_data) > 0) {
-  p2 <- ggplot(subset, aes(x = ETREF_KC, y = TR_G_DAY, color = REPETITION)) +
+  p2 <- ggplot(subset, aes(x = ETREF_KC, y = TR_MM_DAY, color = REPETITION)) +
     geom_point() +
     geom_line(data = all_bp_data,
-              aes(x = ETREF_KC, y = TR_G_DAY, group = REPETITION, color = REPETITION),
+              aes(x = ETREF_KC, y = TR_MM_DAY, group = REPETITION, color = REPETITION),
               size = 1) +
     geom_text(data = annotations,
               aes(x = x, y = y, label = label, color = REPETITION),
               hjust = 1, vjust = 1, size = 3.5, show.legend = FALSE) +
     scale_color_manual(values = rep_colors) +
     labs(title = paste0("Segmented model - Genotype ", i," - ", geno_name),
-      x = "ETREF_KC (mm.day⁻¹.kPa)",
-    y = "ETr (g·day⁻¹)",      color = "Repetition") +
+      x = "ETref x Kc (mm.day⁻¹.kPa)",
+  y = "Tr (mm·day⁻¹)",
+    color = "Repetition") +
     theme_bw(base_size = 14)
 } else {
 #  fallback si tous les modèles échouent
@@ -6310,7 +6314,7 @@ print(sum_up_XY_regression)
 ##bind all slope of each reps of linear model  in only one file
 trait_name = "SLOPE"
 model_name = "linear"
-Yvar= "TRrate" ## TRrate or TR
+Yvar= "TR" ## TRrate or TR
 Xvar= "ETREF_KC" ## VPD, ETREF, or ETREF_KC
 
 

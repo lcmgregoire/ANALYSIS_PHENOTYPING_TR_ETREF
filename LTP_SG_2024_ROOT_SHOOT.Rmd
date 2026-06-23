@@ -327,14 +327,76 @@ blup_result <-  blup_geno %>%
   tibble::rownames_to_column("N_GENO") %>% ## add n_geno id 
   rename(BLUP = `(Intercept)`)
 
+panel <- panel %>%
+  mutate(N_GENO = as.character(N_GENO))
+
+blup_result = left_join(blup_result, panel, by="N_GENO")
+
   
   head(blup_result)
 
+
 save(blup_result, file =  paste0(opPATH.obj,"BLUPS_",trait_name,"_", trial, ".RData"))  
-write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name, "_", trial, ".csv"), dec = ".", sep = ";")
+write.table(blup_result, file = paste0(opPATH.results,"BLUPS_",trait_name, "_", trial, ".csv"), dec = ".", sep = ";", row.names = FALSE)
 ```
 
 
+```{r}
+library(lme4)
+
+model_geno_blue <- lmer(
+  ROOT_SHOOT ~ N_GENO +
+    (1 | BLOCK) +
+    (1 | REPETITION) +
+    (1 | WEEK),
+  data = data
+)
+
+library(emmeans)
+library(dplyr)
+
+blue_result <- emmeans(model_geno_blue, ~ N_GENO) %>%
+  as.data.frame() %>%
+  rename(BLUE = emmean)
+
+panel <- panel %>%
+  mutate(N_GENO = as.character(N_GENO))
+
+blue_result <- left_join(
+  blue_result,
+  panel,
+  by = "N_GENO"
+)
+
+head(blue_result)
+
+save(
+  blue_result,
+  file = paste0(
+    opPATH.obj,
+    "BLUES_",
+    trait_name,
+    "_",
+    trial,
+    ".RData"
+  )
+)
+
+write.table(
+  blue_result,
+  file = paste0(
+    opPATH.results,
+    "BLUES_",
+    trait_name,
+    "_",
+    trial,
+    ".csv"
+  ),
+  dec = ".",
+  sep = ";",
+  row.names = FALSE
+)
+```
 
 
 
